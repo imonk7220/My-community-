@@ -31,3 +31,217 @@ a{color:#1d4ed8}
 </head>
 <body>
 <header><h1>কমিউনিটি সাইট</h1><div id="auth"></div></header>
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,getDocs,query,where,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBN21XVf4fn_77df6WOO5HBGp5d6ndW98M",
+  authDomain: "my-community-site-44ad2.firebaseapp.com",
+  projectId: "my-community-site-44ad2",
+  storageBucket: "my-community-site-44ad2.firebasestorage.app",
+  messagingSenderId: "1064689772566",
+  appId: "1:1064689772566:web:4863d595c5c65f587f6d37",
+  measurementId: "G-M5E014E7RH"
+};
+
+// ছবি/ভিডিও আপলোডের জন্য Cloudinary (পরে বসাবেন; ফাঁকা থাকলে শুধু লেখা পোস্ট চলবে)
+const CLOUD_NAME = "";
+const UPLOAD_PRESET = "";
+const MAX_MB = 50;
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let user = null, role = "user", tab = "home";
+const $ = s => document.querySelector(s);
+const isStaff = () => role === "admin" || role === "moderator";
+const isAdmin = () => role === "admin";
+
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in props) {
+    if (k === "class") e.className = props[k];
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), props[k]);
+    else e[k] = props[k];
+  }
+  kids.flat().forEach(c => e.append(c));
+  return e;
+}
+
+onAuthStateChanged(auth, async u => {
+  user = u; role = "user";
+  if (u) {
+    try {
+      await setDoc(doc(db, "users", u.uid), {name: u.displayName || "", email: (u.email || "").toLowerCase()}, {merge: true});
+      const r = await getDoc(doc(db, "roles", u.uid));
+      if (r.exists()) role = r.data().role;
+    } catch (e) { console.error(e); }
+  }
+  renderAuth(); renderNav(); show(tab);
+});
+
+function renderAuth() {
+  const a = $("#auth"); a.innerHTML = "";
+  if (!user) {
+    a.append(el("button", {class: "sec", onclick: login}, "Google দিয়ে লগইন"));
+  } else {
+    a.append(el("button", {class: "sec", onclick: () => signOut(auth)}, "লগআউট"));
+  }
+}
+
+async function login() {
+  const p = new GoogleAuthProvider();
+  try { await signInWithPopup(auth, p); }
+  catch (e) { if (e.code !== "auth/popup-closed-by-user") await signInWithRedirect(auth, p); }
+}
+
+function renderNav() {
+  const n = $("#nav"); n.innerHTML = "";
+  const tabs = [["home", "হোম"]];
+  if (user) tabs.push(["new", "নতুন পোস্ট"], ["mine", "আমার পোস্ট"]);
+  if (isStaff()) tabs.push(["pending", "অপেক্ষমাণ"]);
+  if (isAdmin()) tabs.push(["roles", "রোল"]);
+  if (user) tabs.push(["me", "প্রোফাইল"]);
+  tabs.forEach(([k, l]) => n.append(el("button", {class: tab === k ? "on" : "", onclick: () => show(k)}, l)));
+}
+
+function show(t) {
+  tab = t; renderNav();
+  const m = $("#main"); m.innerHTML = "";
+  if (t === "home") return listPosts(query(collection(db, "posts"), where("status", "==", "approved")), false);
+  if (!user) { m.append(el("div", {class: "center"}, "এই পেজ দেখতে লগইন করুন।")); return; }
+  if (t === "new") return newPost();
+  if (t === "mine") return listPosts(query(collection(db, "posts"), where("uid", "==", user.uid)), false, true);
+  if (t === "pending" && isStaff()) return listPosts(query(collection(db, "posts"), where("status", "==", "pending")), true);
+  if (t === "roles" && isAdmin()) return rolesPanel();
+  if (t === "me") return profile();
+}
+
+async function listPosts(q, staffMode, showStatus) {
+  const m = $("#main");
+  m.append(el("div", {class: "center", id: "ld"}, "লোড হচ্ছে..."));
+  try {
+    const snap = await getDocs(q);
+    $("#ld")?.remove();
+    const items = snap.docs.map(d => ({id: d.id, ...d.data()}))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    if (!items.length) m.append(el("div", {class: "center"}, "কোনো পোস্ট নেই।"));
+    items.forEach(p => m.append(postCard(p, staffMode, showStatus)));
+  } catch (e) {
+    $("#ld")?.remove();
+    m.append(el("div", {class: "center"}, "সমস্যা হয়েছে: " + e.message));
+  }
+}
+
+function postCard(p, staffMode, showStatus) {
+  const c = el("div", {class: "card"});
+  const when = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleString("bn-BD") : "";
+  const meta = el("div", {class: "meta"}, (p.authorName || "অজ্ঞাত") + " · " + when + " ");
+  if (showStatus) meta.append(el("span", {class: "badge " + p.status}, {pending: "অপেক্ষমাণ", approved: "অনুমোদিত", rejected: "বাতিল"}[p.status] || p.status));
+  c.append(meta);
+  if (p.text) c.append(el("div", {style: "white-space:pre-wrap"}, p.text));
+  if (p.mediaUrl && /^https:\/\/res\.cloudinary\.com\//.test(p.mediaUrl)) {
+    c.append(p.mediaType === "video" ? el("video", {src: p.mediaUrl, controls: true}) : el("img", {src: p.mediaUrl, loading: "lazy"}));
+  }
+  const row = el("div", {class: "row"});
+  if (staffMode) {
+    row.append(el("button", {class: "ok", onclick: () => setStatus(p.id, "approved")}, "Approve"));
+    row.append(el("button", {class: "no", onclick: () => setStatus(p.id, "rejected")}, "Reject"));
+  }
+  if (staffMode || p.uid === user?.uid) {
+    row.append(el("button", {class: "sec", onclick: async () => {
+      if (!confirm("মুছে ফেলবেন?")) return;
+      await deleteDoc(doc(db, "posts", p.id)); show(tab);
+    }}, "মুছুন"));
+  }
+  if (row.children.length) c.append(row);
+  return c;
+}
+
+async function setStatus(id, status) {
+  try { await updateDoc(doc(db, "posts", id), {status, reviewedBy: user.uid}); show("pending"); }
+  catch (e) { alert("সমস্যা: " + e.message); }
+}
+
+function newPost() {
+  const m = $("#main");
+  const ta = el("textarea", {rows: 5, placeholder: "আপনার লেখা..."});
+  const file = el("input", {type: "file", accept: "image/*,video/*"});
+  const msg = el("div", {class: "small"});
+  const btn = el("button", {onclick: async () => {
+    const text = ta.value.trim();
+    const f = file.files[0];
+    if (!text && !f) return msg.textContent = "কিছু লিখুন বা ফাইল দিন।";
+    if (f && !CLOUD_NAME) return msg.textContent = "ছবি/ভিডিও আপলোড এখনো চালু হয়নি।";
+    if (f && f.size > MAX_MB * 1048576) return msg.textContent = "ফাইল " + MAX_MB + "MB এর বেশি হতে পারবে না।";
+    btn.disabled = true; msg.textContent = "পোস্ট হচ্ছে...";
+    try {
+      let mediaUrl = "", mediaType = "";
+      if (f) {
+        const type = f.type.startsWith("video") ? "video" : "image";
+        const fd = new FormData(); fd.append("file", f); fd.append("upload_preset", UPLOAD_PRESET);
+        const r = await fetch("https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/" + type + "/upload", {method: "POST", body: fd});
+        const j = await r.json();
+        if (!j.secure_url) throw new Error("আপলোড ব্যর্থ");
+        mediaUrl = j.secure_url; mediaType = type;
+      }
+      await addDoc(collection(db, "posts"), {
+        uid: user.uid, authorName: user.displayName || "অজ্ঞাত",
+        text: text.slice(0, 5000), mediaUrl, mediaType,
+        status: "pending", createdAt: serverTimestamp()
+      });
+      alert("পোস্ট জমা হয়েছে। অনুমোদনের পর সবাই দেখতে পাবে।");
+      show("mine");
+    } catch (e) { msg.textContent = "সমস্যা: " + e.message; btn.disabled = false; }
+  }}, "পোস্ট করুন");
+  m.append(el("div", {class: "card"}, ta, file, el("div", {class: "row"}, btn), msg));
+}
+
+function rolesPanel() {
+  const m = $("#main");
+  const em = el("input", {type: "email", placeholder: "ইউজারের Gmail"});
+  const msg = el("div", {class: "small"});
+  const act = async r => {
+    const email = em.value.trim().toLowerCase();
+    if (!email) return;
+    try {
+      const s = await getDocs(query(collection(db, "users"), where("email", "==", email)));
+      if (s.empty) return msg.textContent = "এই ইমেইলে কেউ লগইন করেনি। আগে তাকে একবার লগইন করতে বলুন।";
+      const uid = s.docs[0].id;
+      if (r === "user") await deleteDoc(doc(db, "roles", uid));
+      else await setDoc(doc(db, "roles", uid), {role: r, email});
+      msg.textContent = "হয়েছে: " + email + " → " + r; loadRoles();
+    } catch (e) { msg.textContent = "সমস্যা: " + e.message; }
+  };
+  m.append(el("div", {class: "card"},
+    el("b", {}, "রোল পরিবর্তন"), el("div", {class: "meta"}, "ইউজার আগে একবার Gmail দিয়ে লগইন করে থাকতে হবে।"),
+    em, el("div", {class: "row"},
+      el("button", {onclick: () => act("moderator")}, "মডারেটর বানান"),
+      el("button", {class: "ok", onclick: () => act("admin")}, "অ্যাডমিন বানান"),
+      el("button", {class: "no", onclick: () => act("user")}, "রোল সরান")), msg));
+  m.append(el("div", {class: "card", id: "rl"}, "লোড হচ্ছে..."));
+  loadRoles();
+}
+
+async function loadRoles() {
+  const box = $("#rl"); if (!box) return;
+  const s = await getDocs(collection(db, "roles"));
+  box.innerHTML = ""; box.append(el("b", {}, "বর্তমান অ্যাডমিন/মডারেটর"));
+  s.docs.forEach(d => box.append(el("div", {class: "meta"}, (d.data().email || d.id) + " — " + d.data().role)));
+}
+
+function profile() {
+  $("#main").append(el("div", {class: "card"},
+    el("div", {}, user.displayName || ""), el("div", {class: "meta"}, user.email),
+    el("div", {}, "রোল: " + role),
+    el("div", {class: "meta"}, "আপনার UID:"), el("div", {class: "small"}, user.uid)));
+}
+</script>
+</body>
+</html>
