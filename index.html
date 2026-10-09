@@ -26,6 +26,8 @@ textarea,input[type=text],input[type=email]{width:100%;padding:10px;border:1px s
 .hide{display:none}
 .center{text-align:center;padding:40px 12px}
 .small{font-size:12px;color:#555;word-break:break-all}
+.cm{padding:6px 0;border-top:1px solid #eee;font-size:14px;white-space:pre-wrap}
+.row input{flex:1;margin-bottom:0}
 a{color:#1d4ed8}
 </style>
 </head>
@@ -37,7 +39,7 @@ a{color:#1d4ed8}
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,getDocs,query,where,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,collection,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,getDocs,query,where,serverTimestamp,getCountFromServer} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBN21XVf4fn_77df6WOO5HBGp5d6ndW98M",
@@ -148,6 +150,7 @@ function postCard(p, staffMode, showStatus) {
   if (p.mediaUrl && /^https:\/\/res\.cloudinary\.com\//.test(p.mediaUrl)) {
     c.append(p.mediaType === "video" ? el("video", {src: p.mediaUrl, controls: true}) : el("img", {src: p.mediaUrl, loading: "lazy"}));
   }
+  if (p.status === "approved") engagement(p, c);
   const row = el("div", {class: "row"});
   if (staffMode) {
     row.append(el("button", {class: "ok", onclick: () => setStatus(p.id, "approved")}, "Approve"));
@@ -161,6 +164,87 @@ function postCard(p, staffMode, showStatus) {
   }
   if (row.children.length) c.append(row);
   return c;
+}
+
+function engagement(p, c) {
+  const likeBtn = el("button", {class: "sec"}, "🤍 0");
+  const cBtn = el("button", {class: "sec"}, "💬 কমেন্ট");
+  const box = el("div", {class: "hide"});
+  c.append(el("div", {class: "row"}, likeBtn, cBtn), box);
+  const likeRef = user ? doc(db, "posts", p.id, "likes", user.uid) : null;
+  let liked = false, count = 0;
+  const paint = () => { likeBtn.textContent = (liked ? "❤️ " : "🤍 ") + count; };
+  (async () => {
+    try {
+      const cs = await getCountFromServer(collection(db, "posts", p.id, "likes"));
+      count = cs.data().count;
+      if (likeRef) liked = (await getDoc(likeRef)).exists();
+      paint();
+    } catch (e) { console.error(e); }
+  })();
+  likeBtn.onclick = async () => {
+    if (!user) return alert("লাইক দিতে লগইন করুন।");
+    likeBtn.disabled = true;
+    try {
+      if (liked) { await deleteDoc(likeRef); liked = false; count--; }
+      else { await setDoc(likeRef, {uid: user.uid}); liked = true; count++; }
+      paint();
+    } catch (e) { alert("সমস্যা: " + e.message); }
+    likeBtn.disabled = false;
+  };
+  let open = false;
+  cBtn.onclick = () => {
+    open = !open; box.className = open ? "" : "hide";
+    if (open) loadComments(p, box);
+  };
+}
+
+function loadComments(p, box) {
+  box.innerHTML = "";
+  const list = el("div", {});
+  box.append(list);
+  async function refresh() {
+    list.textContent = "লোড হচ্ছে...";
+    try {
+      const s = await getDocs(collection(db, "posts", p.id, "comments"));
+      const items = s.docs.map(d => ({id: d.id, ...d.data()}))
+        .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      list.innerHTML = "";
+      if (!items.length) list.append(el("div", {class: "meta"}, "এখনো কোনো কমেন্ট নেই।"));
+      items.forEach(cm => {
+        const row = el("div", {class: "cm"}, el("b", {}, (cm.authorName || "অজ্ঞাত") + ": "), cm.text);
+        if (user && (cm.uid === user.uid || isStaff())) {
+          row.append(" ", el("a", {href: "#", onclick: async e => {
+            e.preventDefault();
+            if (!confirm("কমেন্ট মুছবেন?")) return;
+            try { await deleteDoc(doc(db, "posts", p.id, "comments", cm.id)); refresh(); }
+            catch (er) { alert("সমস্যা: " + er.message); }
+          }}, "মুছুন"));
+        }
+        list.append(row);
+      });
+    } catch (e) { list.textContent = "সমস্যা: " + e.message; }
+  }
+  if (user) {
+    const inp = el("input", {type: "text", placeholder: "কমেন্ট লিখুন...", maxLength: 1000});
+    const send = el("button", {onclick: async () => {
+      const t = inp.value.trim();
+      if (!t) return;
+      send.disabled = true;
+      try {
+        await addDoc(collection(db, "posts", p.id, "comments"), {
+          uid: user.uid, authorName: user.displayName || "অজ্ঞাত",
+          text: t.slice(0, 1000), createdAt: serverTimestamp()
+        });
+        inp.value = ""; await refresh();
+      } catch (e) { alert("সমস্যা: " + e.message); }
+      send.disabled = false;
+    }}, "পাঠান");
+    box.append(el("div", {class: "row"}, inp, send));
+  } else {
+    box.append(el("div", {class: "meta"}, "কমেন্ট করতে লগইন করুন।"));
+  }
+  refresh();
 }
 
 async function setStatus(id, status) {
@@ -243,4 +327,4 @@ function profile() {
 }
 </script>
 </body>
-</html>
+  </html>
