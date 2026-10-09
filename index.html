@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>কমিউনিটি সাইট</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#f3f4f6;color:#111}
+header{background:#1d4ed8;color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0}
+button{border:0;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer;background:#1d4ed8;color:#fff}
+button.sec{background:#e5e7eb;color:#111}
+button.ok{background:#16a34a}button.no{background:#dc2626}
+nav{display:flex;gap:6px;padding:10px;overflow-x:auto;background:#fff;border-bottom:1px solid #ddd}
+nav button{background:#e5e7eb;color:#111;white-space:nowrap}
+nav button.on{background:#1d4ed8;color:#fff}
+main{max-width:640px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+.card img,.card video{width:100%;border-radius:8px;margin-top:8px;max-height:420px;object-fit:contain;background:#000}
+.meta{font-size:12px;color:#666;margin-bottom:6px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;background:#fde68a}
+.badge.approved{background:#bbf7d0}.badge.rejected{background:#fecaca}
+textarea,input[type=text],input[type=email]{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px;margin-bottom:8px;font-family:inherit}
+.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.hide{display:none}
+.center{text-align:center;padding:40px 12px}
+.small{font-size:12px;color:#555;word-break:break-all}
+a{color:#1d4ed8}
+</style>
+</head>
+<body>
+<header><h1>কমিউনিটি সাইট</h1><div id="auth"></div></header>
