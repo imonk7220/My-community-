@@ -64,8 +64,18 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let openPostId = (location.hash.match(/^#post=([A-Za-z0-9]+)/) || [])[1] || null;
-let user = null, role = "user", tab = openPostId ? "post" : "home", banned = false;
+const parseHash = () => {
+  let m = location.hash.match(/^#post=([A-Za-z0-9]+)/);
+  if (m) return {t: "post", id: m[1]};
+  m = location.hash.match(/^#user=([A-Za-z0-9]+)/);
+  if (m) return {t: "user", id: m[1]};
+  return null;
+};
+const r0 = parseHash();
+let openPostId = r0 && r0.t === "post" ? r0.id : null;
+let openUserId = r0 && r0.t === "user" ? r0.id : null;
+let user = null, role = "user", tab = openPostId ? "post" : openUserId ? "user" : "home", banned = false;
+let popCache = null;
 let cfg = {autoApprove: false, requireVerify: false};
 const $ = s => document.querySelector(s);
 const isStaff = () => role === "admin" || role === "moderator" || role === "owner";
@@ -140,7 +150,7 @@ async function googleLogin() {
 
 function renderNav() {
   const n = $("#nav"); n.innerHTML = "";
-  const tabs = [["home", "হোম"]];
+  const tabs = [["home", "হোম"], ["popular", "জনপ্রিয়"]];
   if (user) tabs.push(["new", "নতুন পোস্ট"], ["mine", "আমার পোস্ট"]);
   if (isStaff()) tabs.push(["pending", "অপেক্ষমাণ"], ["reports", "রিপোর্ট"]);
   if (isAdmin()) tabs.push(["roles", "রোল"], ["settings", "সেটিংস"]);
@@ -151,10 +161,12 @@ function renderNav() {
 function show(t) {
   tab = t; renderNav();
   const m = $("#main"); m.innerHTML = "";
-  if (t !== "post" && location.hash) history.replaceState(null, "", location.pathname + location.search);
+  if (t !== "post" && t !== "user" && location.hash) history.replaceState(null, "", location.pathname + location.search);
   if (t === "post") return openPostId ? singlePost() : show("home");
+  if (t === "user") return openUserId ? userPage() : show("home");
   if (t === "login") return user ? show("home") : loginView();
   if (t === "home") return homeFeed();
+  if (t === "popular") return popularFeed();
   if (!user) {
     m.append(el("div", {class: "center"}, "এই পেজ দেখতে লগইন করুন।",
       el("div", {class: "row", style: "justify-content:center"}, el("button", {onclick: () => show("login")}, "লগইন / সাইন আপ"))));
@@ -288,19 +300,100 @@ async function singlePost() {
   }
 }
 
-function sharePost(p) {
-  const url = location.origin + location.pathname + "#post=" + p.id;
-  const text = (p.text || "").slice(0, 80);
+function shareUrl(url, text) {
   if (navigator.share) navigator.share({title: "কমিউনিটি সাইট", text, url}).catch(() => {});
   else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => alert("লিংক কপি হয়েছে।"), () => prompt("লিংক কপি করুন:", url));
   else prompt("লিংক কপি করুন:", url);
 }
 
+function sharePost(p) {
+  shareUrl(location.origin + location.pathname + "#post=" + p.id, (p.text || "").slice(0, 80));
+}
+
 window.addEventListener("hashchange", () => {
-  const mm = location.hash.match(/^#post=([A-Za-z0-9]+)/);
-  if (mm) { openPostId = mm[1]; show("post"); }
-  else if (tab === "post") { openPostId = null; show("home"); }
+  const r = parseHash();
+  if (r && r.t === "post") { openPostId = r.id; show("post"); }
+  else if (r && r.t === "user") { openUserId = r.id; show("user"); }
+  else if (tab === "post" || tab === "user") { openPostId = null; openUserId = null; show("home"); }
 });
+
+async function popularFeed() {
+  const m = $("#main");
+  const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+  m.append(el("div", {class: "meta"}, "সাম্প্রতিক ৩০টি পোস্টের মধ্যে সবচেয়ে বেশি রিঅ্যাকশন ও কমেন্ট পাওয়া পোস্ট"), ld);
+  try {
+    if (!popCache || Date.now() - popCache.t > 300000) {
+      const snap = await getDocs(query(collection(db, "posts"), where("status", "==", "approved"), orderBy("createdAt", "desc"), limit(30)));
+      const items = await Promise.all(snap.docs.map(async d => {
+        const [lc, cc] = await Promise.all([
+          getCountFromServer(collection(db, "posts", d.id, "likes")),
+          getCountFromServer(collection(db, "posts", d.id, "comments"))
+        ]);
+        return {p: {id: d.id, ...d.data()}, score: lc.data().count + cc.data().count * 2};
+      }));
+      items.sort((a, b) => b.score - a.score || ((b.p.createdAt?.seconds || 0) - (a.p.createdAt?.seconds || 0)));
+      popCache = {t: Date.now(), items: items.slice(0, 10)};
+    }
+    ld.remove();
+    const top = popCache.items.filter(x => x.score > 0);
+    if (!top.length) m.append(el("div", {class: "center"}, "এখনো কোনো জনপ্রিয় পোস্ট নেই।"));
+    top.forEach(x => m.append(postCard(x.p, false, false)));
+  } catch (e) { ld.remove(); m.append(errBox(e)); }
+}
+
+async function userPage() {
+  const m = $("#main");
+  m.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { openUserId = null; show("home"); }}, "← হোম")));
+  const head = el("div", {class: "card"});
+  const holder = el("div", {});
+  const moreWrap = el("div", {class: "row", style: "justify-content:center"});
+  m.append(head, holder, moreWrap);
+  const uid = openUserId;
+  let last = null, total = null, shownName = "";
+  const fillHead = name => {
+    head.innerHTML = "";
+    head.append(el("b", {}, name || "ইউজার"),
+      el("div", {class: "meta"}, "প্রকাশিত পোস্ট: " + (total === null ? "..." : total)),
+      el("div", {class: "row"}, el("button", {class: "sec", onclick: () => shareUrl(location.origin + location.pathname + "#user=" + uid, (name || "ইউজার") + " এর পোস্ট")}, "↗ প্রোফাইল শেয়ার")));
+  };
+  fillHead("");
+  getCountFromServer(query(collection(db, "posts"), where("status", "==", "approved"), where("uid", "==", uid)))
+    .then(c => { total = c.data().count; fillHead(shownName); }).catch(() => {});
+  const addItems = items => {
+    if (items.length && !shownName) { shownName = items[0].authorName || ""; fillHead(shownName); }
+    items.forEach(p => holder.append(postCard(p, false, false)));
+  };
+  const load = async () => {
+    moreWrap.innerHTML = "";
+    const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+    holder.append(ld);
+    try {
+      const parts = [collection(db, "posts"), where("status", "==", "approved"), where("uid", "==", uid), orderBy("createdAt", "desc"), limit(PAGE)];
+      if (last) parts.push(startAfter(last));
+      const snap = await getDocs(query(...parts));
+      ld.remove();
+      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, "এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।"));
+      addItems(snap.docs.map(d => ({id: d.id, ...d.data()})));
+      if (snap.docs.length === PAGE) {
+        last = snap.docs[snap.docs.length - 1];
+        moreWrap.append(el("button", {class: "sec", onclick: load}, "আরও দেখুন"));
+      }
+    } catch (e) {
+      ld.remove();
+      if (e.code === "failed-precondition") {
+        if (isAdmin()) holder.append(errBox(e));
+        try {
+          const snap = await getDocs(query(collection(db, "posts"), where("status", "==", "approved"), where("uid", "==", uid), limit(100)));
+          const items = snap.docs.map(d => ({id: d.id, ...d.data()}))
+            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          if (!items.length) holder.append(el("div", {class: "center"}, "এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।"));
+          addItems(items);
+        } catch (e2) { holder.append(errBox(e2)); }
+      } else holder.append(errBox(e));
+    }
+  };
+  load();
+}
 
 async function report(type, targetId, postId, authorUid, authorName, preview) {
   if (!user) return alert("রিপোর্ট করতে লগইন করুন।");
@@ -327,7 +420,7 @@ async function banUser(uid, name) {
 function postCard(p, staffMode, showStatus, autoOpen) {
   const c = el("div", {class: "card"});
   const when = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleString("bn-BD") : "";
-  const meta = el("div", {class: "meta"}, (p.authorName || "অজ্ঞাত") + " · ", p.status === "approved" ? el("a", {href: "#post=" + p.id}, when || "লিংক") : when, " ");
+  const meta = el("div", {class: "meta"}, p.uid ? el("a", {href: "#user=" + p.uid}, p.authorName || "অজ্ঞাত") : (p.authorName || "অজ্ঞাত"), " · ", p.status === "approved" ? el("a", {href: "#post=" + p.id}, when || "লিংক") : when, " ");
   if (showStatus) meta.append(el("span", {class: "badge " + p.status}, {pending: "অপেক্ষমাণ", approved: "অনুমোদিত", rejected: "বাতিল"}[p.status] || p.status));
   c.append(meta);
   if (p.text) c.append(el("div", {style: "white-space:pre-wrap"}, p.text));
@@ -413,7 +506,7 @@ function loadComments(p, box) {
       list.innerHTML = "";
       if (!items.length) list.append(el("div", {class: "meta"}, "এখনো কোনো কমেন্ট নেই।"));
       items.forEach(cm => {
-        const row = el("div", {class: "cm"}, el("b", {}, (cm.authorName || "অজ্ঞাত") + ": "), cm.text);
+        const row = el("div", {class: "cm"}, el("a", {href: "#user=" + cm.uid, style: "font-weight:bold;color:inherit;text-decoration:none"}, cm.authorName || "অজ্ঞাত"), ": ", cm.text);
         if (user && (cm.uid === user.uid || isStaff())) {
           row.append(" ", el("a", {href: "#", onclick: async e => {
             e.preventDefault();
@@ -614,6 +707,7 @@ function profile() {
     el("div", {}, "রোল: " + role),
     el("div", {class: "meta"}, "আপনার UID:"), el("div", {class: "small"}, user.uid));
   if (banned) card.append(el("div", {class: "meta", style: "margin-top:8px"}, "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।"));
+  card.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { location.hash = "#user=" + user.uid; }}, "আমার পাবলিক পেজ দেখুন")));
   if (user.providerData.some(p => p.providerId === "password") && !user.emailVerified) {
     card.append(el("div", {class: "meta", style: "margin-top:10px"}, "আপনার ইমেইল ভেরিফাই করা হয়নি" + (cfg.requireVerify ? " (এখন পোস্ট, লাইক ও কমেন্টের জন্য জরুরি)।" : ".")),
       el("div", {class: "row"},
@@ -630,4 +724,4 @@ function profile() {
 }
 </script>
 </body>
-                  </html>
+  </html>
