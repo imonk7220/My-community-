@@ -62,8 +62,9 @@ const db = getFirestore(app);
 let user = null, role = "user", tab = "home", banned = false;
 let cfg = {autoApprove: false, requireVerify: false};
 const $ = s => document.querySelector(s);
-const isStaff = () => role === "admin" || role === "moderator";
-const isAdmin = () => role === "admin";
+const isStaff = () => role === "admin" || role === "moderator" || role === "owner";
+const isAdmin = () => role === "admin" || role === "owner";
+const isOwner = () => role === "owner";
 const nm = () => user.displayName || (user.email || "").split("@")[0] || "অজ্ঞাত";
 
 const AUTH_ERR = {
@@ -485,6 +486,8 @@ function rolesPanel() {
   const act = async r => {
     const email = em.value.trim().toLowerCase();
     if (!email) return;
+    if (email === (user.email || "").toLowerCase()) return msg.textContent = "নিজের রোল এখান থেকে বদলানো যাবে না।";
+    if (!isOwner() && r === "admin") return msg.textContent = "শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন বানাতে পারে।";
     try {
       const s = await getDocs(query(collection(db, "users"), where("email", "==", email)));
       if (s.empty) return msg.textContent = "এই ইমেইলে কেউ লগইন করেনি। আগে তাকে একবার লগইন করতে বলুন।";
@@ -492,13 +495,14 @@ function rolesPanel() {
       if (r === "user") await deleteDoc(doc(db, "roles", uid));
       else await setDoc(doc(db, "roles", uid), {role: r, email});
       msg.textContent = "হয়েছে: " + email + " → " + r; loadRoles();
-    } catch (e) { msg.textContent = "সমস্যা: " + e.message; }
+    } catch (e) { msg.textContent = "করা যায়নি (এই রোল বদলানোর অনুমতি আপনার নেই): " + e.message; }
   };
   m.append(el("div", {class: "card"},
-    el("b", {}, "রোল পরিবর্তন"), el("div", {class: "meta"}, "ইউজার আগে একবার লগইন করে থাকতে হবে।"),
+    el("b", {}, "রোল পরিবর্তন"),
+    el("div", {class: "meta"}, "ইউজার আগে একবার লগইন করে থাকতে হবে। শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন যোগ বা সরাতে পারে; অন্য অ্যাডমিনরা শুধু মডারেটর যোগ বা সরাতে পারে।"),
     em, el("div", {class: "row"},
       el("button", {onclick: () => act("moderator")}, "মডারেটর বানান"),
-      el("button", {class: "ok", onclick: () => act("admin")}, "অ্যাডমিন বানান"),
+      isOwner() ? el("button", {class: "ok", onclick: () => act("admin")}, "অ্যাডমিন বানান") : "",
       el("button", {class: "no", onclick: () => act("user")}, "রোল সরান")), msg));
   m.append(el("div", {class: "card", id: "rl"}, "লোড হচ্ছে..."));
   loadRoles();
