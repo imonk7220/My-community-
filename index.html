@@ -75,7 +75,7 @@ const r0 = parseHash();
 let openPostId = r0 && r0.t === "post" ? r0.id : null;
 let openUserId = r0 && r0.t === "user" ? r0.id : null;
 let user = null, role = "user", tab = openPostId ? "post" : openUserId ? "user" : "home", banned = false;
-let popCache = null;
+let popCache = null, unread = 0, badgeT = 0;
 let cfg = {autoApprove: false, requireVerify: false};
 const $ = s => document.querySelector(s);
 const isStaff = () => role === "admin" || role === "moderator" || role === "owner";
@@ -122,7 +122,7 @@ function blockReason() {
 }
 
 onAuthStateChanged(auth, async u => {
-  user = u; role = "user"; banned = false;
+  user = u; role = "user"; banned = false; unread = 0;
   await loadCfg();
   if (u) {
     try {
@@ -134,6 +134,7 @@ onAuthStateChanged(auth, async u => {
     if (tab === "login") tab = "home";
   }
   renderAuth(); renderNav(); show(tab);
+  if (u) refreshBadge(true);
 });
 
 function renderAuth() {
@@ -151,7 +152,7 @@ async function googleLogin() {
 function renderNav() {
   const n = $("#nav"); n.innerHTML = "";
   const tabs = [["home", "হোম"], ["popular", "জনপ্রিয়"]];
-  if (user) tabs.push(["new", "নতুন পোস্ট"], ["mine", "আমার পোস্ট"]);
+  if (user) tabs.push(["feed", "ফলো করা"], ["notif", "🔔" + (unread ? " " + unread : "")], ["new", "নতুন পোস্ট"], ["mine", "আমার পোস্ট"]);
   if (isStaff()) tabs.push(["pending", "অপেক্ষমাণ"], ["reports", "রিপোর্ট"]);
   if (isAdmin()) tabs.push(["roles", "রোল"], ["settings", "সেটিংস"]);
   if (user) tabs.push(["me", "প্রোফাইল"]);
@@ -159,7 +160,7 @@ function renderNav() {
 }
 
 function show(t) {
-  tab = t; renderNav();
+  tab = t; renderNav(); refreshBadge(false);
   const m = $("#main"); m.innerHTML = "";
   if (t !== "post" && t !== "user" && location.hash) history.replaceState(null, "", location.pathname + location.search);
   if (t === "post") return openPostId ? singlePost() : show("home");
@@ -172,6 +173,8 @@ function show(t) {
       el("div", {class: "row", style: "justify-content:center"}, el("button", {onclick: () => show("login")}, "লগইন / সাইন আপ"))));
     return;
   }
+  if (t === "feed") return followingFeed();
+  if (t === "notif") return notifPanel();
   if (t === "new") return newPost();
   if (t === "mine") return listPosts(query(collection(db, "posts"), where("uid", "==", user.uid)), false, true);
   if (t === "pending" && isStaff()) return listPosts(query(collection(db, "posts"), where("status", "==", "pending")), true);
@@ -349,16 +352,43 @@ async function userPage() {
   const moreWrap = el("div", {class: "row", style: "justify-content:center"});
   m.append(head, holder, moreWrap);
   const uid = openUserId;
-  let last = null, total = null, shownName = "";
+  let last = null, total = null, shownName = "", followers = null, following = false;
   const fillHead = name => {
     head.innerHTML = "";
+    const row = el("div", {class: "row"});
+    if (user && user.uid !== uid) {
+      const fb = el("button", {class: following ? "sec" : "ok", onclick: async () => {
+        const why = blockReason();
+        if (why && !following) return alert(why);
+        fb.disabled = true;
+        const fid = user.uid + "_" + uid;
+        try {
+          if (following) {
+            await deleteDoc(doc(db, "follows", fid));
+            following = false; followers = Math.max(0, (followers || 1) - 1);
+          } else {
+            await setDoc(doc(db, "follows", fid), {follower: user.uid, followee: uid, createdAt: serverTimestamp()});
+            following = true; followers = (followers || 0) + 1;
+            notify({id: "follow_" + fid, to: uid, type: "follow", postId: "", text: ""});
+          }
+        } catch (e) { alert("সমস্যা: " + e.message); }
+        fillHead(shownName);
+      }}, following ? "✓ ফলো করছেন" : "➕ ফলো করুন");
+      row.append(fb);
+    }
+    row.append(el("button", {class: "sec", onclick: () => shareUrl(location.origin + location.pathname + "#user=" + uid, (name || "ইউজার") + " এর পোস্ট")}, "↗ প্রোফাইল শেয়ার"));
     head.append(el("b", {}, name || "ইউজার"),
-      el("div", {class: "meta"}, "প্রকাশিত পোস্ট: " + (total === null ? "..." : total)),
-      el("div", {class: "row"}, el("button", {class: "sec", onclick: () => shareUrl(location.origin + location.pathname + "#user=" + uid, (name || "ইউজার") + " এর পোস্ট")}, "↗ প্রোফাইল শেয়ার")));
+      el("div", {class: "meta"}, "প্রকাশিত পোস্ট: " + (total === null ? "..." : total) + " · ফলোয়ার: " + (followers === null ? "..." : followers)),
+      row);
   };
   fillHead("");
   getCountFromServer(query(collection(db, "posts"), where("status", "==", "approved"), where("uid", "==", uid)))
     .then(c => { total = c.data().count; fillHead(shownName); }).catch(() => {});
+  getCountFromServer(query(collection(db, "follows"), where("followee", "==", uid)))
+    .then(c => { followers = c.data().count; fillHead(shownName); }).catch(() => {});
+  if (user && user.uid !== uid) {
+    getDoc(doc(db, "follows", user.uid + "_" + uid)).then(sn => { following = sn.exists(); fillHead(shownName); }).catch(() => {});
+  }
   const addItems = items => {
     if (items.length && !shownName) { shownName = items[0].authorName || ""; fillHead(shownName); }
     items.forEach(p => holder.append(postCard(p, false, false)));
@@ -393,6 +423,117 @@ async function userPage() {
     }
   };
   load();
+}
+
+async function refreshBadge(force) {
+  if (!user) return;
+  if (!force && Date.now() - badgeT < 60000) return;
+  badgeT = Date.now();
+  try {
+    const c = await getCountFromServer(query(collection(db, "notifications"), where("to", "==", user.uid), where("read", "==", false)));
+    unread = c.data().count; renderNav();
+  } catch (e) { console.warn(e); }
+}
+
+async function notify(n) {
+  try {
+    await setDoc(doc(db, "notifications", n.id), {
+      to: n.to, from: user.uid, fromName: n.fromName || nm(), type: n.type,
+      postId: n.postId || "", ref: n.ref || "", text: (n.text || "").slice(0, 100),
+      createdAt: serverTimestamp(), read: false
+    });
+  } catch (e) { console.warn(e); }
+}
+
+async function followingFeed() {
+  const m = $("#main");
+  const holder = el("div", {});
+  const moreWrap = el("div", {class: "row", style: "justify-content:center"});
+  m.append(el("div", {class: "meta"}, "আপনি যাদের ফলো করেন তাদের পোস্ট (সর্বোচ্চ ৩০ জনের)"), holder, moreWrap);
+  let ids = [];
+  try {
+    const fs = await getDocs(query(collection(db, "follows"), where("follower", "==", user.uid), limit(30)));
+    ids = fs.docs.map(d => d.data().followee);
+  } catch (e) { holder.append(errBox(e)); return; }
+  if (!ids.length) {
+    holder.append(el("div", {class: "center"}, "আপনি এখনো কাউকে ফলো করেননি। কোনো লেখকের নামে চেপে তার প্রোফাইলে গিয়ে ফলো করুন।"));
+    return;
+  }
+  let last = null;
+  const load = async () => {
+    moreWrap.innerHTML = "";
+    const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+    holder.append(ld);
+    try {
+      const parts = [collection(db, "posts"), where("status", "==", "approved"), where("uid", "in", ids), orderBy("createdAt", "desc"), limit(PAGE)];
+      if (last) parts.push(startAfter(last));
+      const snap = await getDocs(query(...parts));
+      ld.remove();
+      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, "ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।"));
+      snap.docs.forEach(d => holder.append(postCard({id: d.id, ...d.data()}, false, false)));
+      if (snap.docs.length === PAGE) {
+        last = snap.docs[snap.docs.length - 1];
+        moreWrap.append(el("button", {class: "sec", onclick: load}, "আরও দেখুন"));
+      }
+    } catch (e) {
+      ld.remove();
+      if (e.code === "failed-precondition") {
+        if (isAdmin()) holder.append(errBox(e));
+        try {
+          const snap = await getDocs(query(collection(db, "posts"), where("status", "==", "approved"), where("uid", "in", ids), limit(100)));
+          const items = snap.docs.map(d => ({id: d.id, ...d.data()}))
+            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          if (!items.length) holder.append(el("div", {class: "center"}, "ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।"));
+          items.forEach(p => holder.append(postCard(p, false, false)));
+        } catch (e2) { holder.append(errBox(e2)); }
+      } else holder.append(errBox(e));
+    }
+  };
+  load();
+}
+
+async function notifPanel() {
+  const m = $("#main");
+  const holder = el("div", {});
+  m.append(el("b", {}, "🔔 নোটিফিকেশন"), holder);
+  const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+  holder.append(ld);
+  try {
+    let docs;
+    try {
+      const s = await getDocs(query(collection(db, "notifications"), where("to", "==", user.uid), orderBy("createdAt", "desc"), limit(30)));
+      docs = s.docs;
+    } catch (e) {
+      if (e.code !== "failed-precondition") throw e;
+      if (isAdmin()) holder.append(errBox(e));
+      const s = await getDocs(query(collection(db, "notifications"), where("to", "==", user.uid), limit(100)));
+      docs = s.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0)).slice(0, 30);
+    }
+    ld.remove();
+    if (!docs.length) holder.append(el("div", {class: "center"}, "কোনো নোটিফিকেশন নেই।"));
+    docs.forEach(d => {
+      const n = d.data();
+      const who = n.fromName || "কেউ";
+      const msg = {
+        comment: who + " আপনার পোস্টে কমেন্ট করেছেন: " + (n.text || ""),
+        like: who + " আপনার পোস্টে রিঅ্যাকশন দিয়েছেন " + (n.text || ""),
+        follow: who + " আপনাকে ফলো করেছেন",
+        approved: "আপনার পোস্টটি অনুমোদিত হয়েছে এবং এখন সবাই দেখতে পাচ্ছে",
+        rejected: "আপনার পোস্টটি বাতিল করা হয়েছে"
+      }[n.type] || "নতুন নোটিফিকেশন";
+      const when = n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString("bn-BD") : "";
+      const c = el("div", {class: "card", style: "cursor:pointer;" + (n.read ? "" : "background:#eff6ff")},
+        el("div", {}, msg), el("div", {class: "meta", style: "margin-top:4px"}, when));
+      c.onclick = () => {
+        if (n.type === "follow") location.hash = "#user=" + n.from;
+        else if (n.type === "rejected") show("mine");
+        else if (n.postId) location.hash = "#post=" + n.postId;
+      };
+      holder.append(c);
+    });
+    const unreadDocs = docs.filter(d => d.data().read === false);
+    Promise.all(unreadDocs.map(d => updateDoc(d.ref, {read: true}).catch(() => {}))).then(() => { unread = 0; renderNav(); });
+  } catch (e) { ld.remove(); holder.append(errBox(e)); }
 }
 
 async function report(type, targetId, postId, authorUid, authorName, preview) {
@@ -430,8 +571,8 @@ function postCard(p, staffMode, showStatus, autoOpen) {
   if (p.status === "approved") engagement(p, c, autoOpen);
   const row = el("div", {class: "row"});
   if (staffMode) {
-    row.append(el("button", {class: "ok", onclick: () => setStatus(p.id, "approved")}, "Approve"));
-    row.append(el("button", {class: "no", onclick: () => setStatus(p.id, "rejected")}, "Reject"));
+    row.append(el("button", {class: "ok", onclick: () => setStatus(p, "approved")}, "Approve"));
+    row.append(el("button", {class: "no", onclick: () => setStatus(p, "rejected")}, "Reject"));
     row.append(el("button", {class: "sec", onclick: () => banUser(p.uid, p.authorName)}, "ইউজার ব্যান"));
   }
   if (user && p.status === "approved" && p.uid !== user.uid) {
@@ -476,7 +617,15 @@ function engagement(p, c, autoOpen) {
     if (t !== null && why) return alert(why);
     try {
       if (t === null) { await deleteDoc(likeRef); if (mine) { count--; mine = null; } }
-      else { await setDoc(likeRef, {uid: user.uid, type: t}); if (!mine) count++; mine = t; }
+      else {
+        const first = !mine;
+        await setDoc(likeRef, {uid: user.uid, type: t});
+        if (first) {
+          count++;
+          if (p.uid && p.uid !== user.uid) notify({id: "like_" + p.id + "_" + user.uid, to: p.uid, type: "like", postId: p.id, text: EMO[t]});
+        }
+        mine = t;
+      }
       paint();
     } catch (e) { alert("সমস্যা: " + e.message); }
   };
@@ -534,10 +683,11 @@ function loadComments(p, box) {
       if (why) return alert(why);
       send.disabled = true;
       try {
-        await addDoc(collection(db, "posts", p.id, "comments"), {
+        const cref = await addDoc(collection(db, "posts", p.id, "comments"), {
           uid: user.uid, authorName: nm(),
           text: t.slice(0, 1000), createdAt: serverTimestamp()
         });
+        if (p.uid && p.uid !== user.uid) notify({id: "comment_" + cref.id, to: p.uid, type: "comment", postId: p.id, ref: cref.id, text: t});
         inp.value = ""; await refresh();
       } catch (e) { alert("সমস্যা: " + e.message); }
       send.disabled = false;
@@ -549,9 +699,11 @@ function loadComments(p, box) {
   refresh();
 }
 
-async function setStatus(id, status) {
-  try { await updateDoc(doc(db, "posts", id), {status, reviewedBy: user.uid}); show("pending"); }
-  catch (e) { alert("সমস্যা: " + e.message); }
+async function setStatus(p, status) {
+  try { await updateDoc(doc(db, "posts", p.id), {status, reviewedBy: user.uid}); }
+  catch (e) { return alert("সমস্যা: " + e.message); }
+  if (p.uid && p.uid !== user.uid) notify({id: "status_" + p.id + "_" + status, to: p.uid, type: status, postId: p.id, text: "", fromName: "মডারেটর"});
+  show("pending");
 }
 
 function newPost() {
