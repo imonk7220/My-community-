@@ -21,7 +21,7 @@ main{max-width:640px;margin:0 auto;padding:12px}
 .meta{font-size:12px;color:#666;margin-bottom:6px}
 .badge{font-size:11px;padding:2px 8px;border-radius:10px;background:#fde68a}
 .badge.approved{background:#bbf7d0}.badge.rejected{background:#fecaca}
-textarea,input[type=text],input[type=email]{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px;margin-bottom:8px;font-family:inherit}
+textarea,input[type=text],input[type=email],input[type=password]{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px;margin-bottom:8px;font-family:inherit}
 .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .hide{display:none}
 .center{text-align:center;padding:40px 12px}
@@ -38,7 +38,7 @@ a{color:#1d4ed8}
 
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,onAuthStateChanged,signOut,createUserWithEmailAndPassword,signInWithEmailAndPassword,sendPasswordResetEmail,sendEmailVerification,updateProfile} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,collection,addDoc,doc,getDoc,setDoc,updateDoc,deleteDoc,getDocs,query,where,serverTimestamp,getCountFromServer} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -59,10 +59,25 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let user = null, role = "user", tab = "home";
+let user = null, role = "user", tab = "home", banned = false;
+let cfg = {autoApprove: false, requireVerify: false};
 const $ = s => document.querySelector(s);
 const isStaff = () => role === "admin" || role === "moderator";
 const isAdmin = () => role === "admin";
+const nm = () => user.displayName || (user.email || "").split("@")[0] || "অজ্ঞাত";
+
+const AUTH_ERR = {
+  "auth/email-already-in-use": "এই ইমেইলে আগেই অ্যাকাউন্ট আছে। লগইন করুন।",
+  "auth/weak-password": "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।",
+  "auth/invalid-email": "ইমেইলটি সঠিক নয়।",
+  "auth/invalid-credential": "ইমেইল বা পাসওয়ার্ড ভুল।",
+  "auth/user-not-found": "এই ইমেইলে অ্যাকাউন্ট নেই।",
+  "auth/wrong-password": "পাসওয়ার্ড ভুল।",
+  "auth/too-many-requests": "অনেকবার চেষ্টা করেছেন, একটু পরে আবার চেষ্টা করুন।",
+  "auth/operation-not-allowed": "Firebase-এ Email/Password লগইন এখনো চালু করা হয়নি।",
+  "auth/network-request-failed": "ইন্টারনেট সংযোগে সমস্যা।"
+};
+const aerr = e => AUTH_ERR[e.code] || ("সমস্যা: " + e.message);
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -75,28 +90,42 @@ function el(tag, props = {}, ...kids) {
   return e;
 }
 
+async function loadCfg() {
+  try {
+    const s = await getDoc(doc(db, "settings", "config"));
+    const d = s.exists() ? s.data() : {};
+    cfg = {autoApprove: d.autoApprove === true, requireVerify: d.requireVerify === true};
+  } catch (e) { console.error(e); }
+}
+
+function blockReason() {
+  if (banned) return "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।";
+  if (cfg.requireVerify && !user.emailVerified) return "এখন পোস্ট, লাইক বা কমেন্ট করতে আগে ইমেইল ভেরিফাই করতে হবে। প্রোফাইল ট্যাবে গিয়ে ভেরিফিকেশন লিংক পাঠান।";
+  return "";
+}
+
 onAuthStateChanged(auth, async u => {
-  user = u; role = "user";
+  user = u; role = "user"; banned = false;
+  await loadCfg();
   if (u) {
     try {
-      await setDoc(doc(db, "users", u.uid), {name: u.displayName || "", email: (u.email || "").toLowerCase()}, {merge: true});
+      await setDoc(doc(db, "users", u.uid), {name: u.displayName || (u.email || "").split("@")[0], email: (u.email || "").toLowerCase()}, {merge: true});
       const r = await getDoc(doc(db, "roles", u.uid));
       if (r.exists()) role = r.data().role;
+      banned = (await getDoc(doc(db, "banned", u.uid))).exists();
     } catch (e) { console.error(e); }
+    if (tab === "login") tab = "home";
   }
   renderAuth(); renderNav(); show(tab);
 });
 
 function renderAuth() {
   const a = $("#auth"); a.innerHTML = "";
-  if (!user) {
-    a.append(el("button", {class: "sec", onclick: login}, "Google দিয়ে লগইন"));
-  } else {
-    a.append(el("button", {class: "sec", onclick: () => signOut(auth)}, "লগআউট"));
-  }
+  if (!user) a.append(el("button", {class: "sec", onclick: () => show("login")}, "লগইন / সাইন আপ"));
+  else a.append(el("button", {class: "sec", onclick: () => signOut(auth)}, "লগআউট"));
 }
 
-async function login() {
+async function googleLogin() {
   const p = new GoogleAuthProvider();
   try { await signInWithPopup(auth, p); }
   catch (e) { if (e.code !== "auth/popup-closed-by-user") await signInWithRedirect(auth, p); }
@@ -106,8 +135,8 @@ function renderNav() {
   const n = $("#nav"); n.innerHTML = "";
   const tabs = [["home", "হোম"]];
   if (user) tabs.push(["new", "নতুন পোস্ট"], ["mine", "আমার পোস্ট"]);
-  if (isStaff()) tabs.push(["pending", "অপেক্ষমাণ"]);
-  if (isAdmin()) tabs.push(["roles", "রোল"]);
+  if (isStaff()) tabs.push(["pending", "অপেক্ষমাণ"], ["reports", "রিপোর্ট"]);
+  if (isAdmin()) tabs.push(["roles", "রোল"], ["settings", "সেটিংস"]);
   if (user) tabs.push(["me", "প্রোফাইল"]);
   tabs.forEach(([k, l]) => n.append(el("button", {class: tab === k ? "on" : "", onclick: () => show(k)}, l)));
 }
@@ -115,13 +144,68 @@ function renderNav() {
 function show(t) {
   tab = t; renderNav();
   const m = $("#main"); m.innerHTML = "";
+  if (t === "login") return user ? show("home") : loginView();
   if (t === "home") return listPosts(query(collection(db, "posts"), where("status", "==", "approved")), false);
-  if (!user) { m.append(el("div", {class: "center"}, "এই পেজ দেখতে লগইন করুন।")); return; }
+  if (!user) {
+    m.append(el("div", {class: "center"}, "এই পেজ দেখতে লগইন করুন।",
+      el("div", {class: "row", style: "justify-content:center"}, el("button", {onclick: () => show("login")}, "লগইন / সাইন আপ"))));
+    return;
+  }
   if (t === "new") return newPost();
   if (t === "mine") return listPosts(query(collection(db, "posts"), where("uid", "==", user.uid)), false, true);
   if (t === "pending" && isStaff()) return listPosts(query(collection(db, "posts"), where("status", "==", "pending")), true);
+  if (t === "reports" && isStaff()) return reportsPanel();
   if (t === "roles" && isAdmin()) return rolesPanel();
+  if (t === "settings" && isAdmin()) return settingsPanel();
   if (t === "me") return profile();
+}
+
+function loginView() {
+  const m = $("#main"); m.innerHTML = "";
+  let mode = "in";
+  const card = el("div", {class: "card"}); m.append(card);
+  const render = () => {
+    card.innerHTML = "";
+    const name = el("input", {type: "text", placeholder: "আপনার নাম"});
+    const em = el("input", {type: "email", placeholder: "ইমেইল"});
+    const pw = el("input", {type: "password", placeholder: "পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)"});
+    const msg = el("div", {class: "small"});
+    const go = el("button", {onclick: async () => {
+      const email = em.value.trim(), pass = pw.value;
+      if (!email || !pass) return msg.textContent = "ইমেইল ও পাসওয়ার্ড দিন।";
+      if (mode === "up" && !name.value.trim()) return msg.textContent = "আপনার নাম দিন।";
+      go.disabled = true; msg.textContent = "অপেক্ষা করুন...";
+      try {
+        if (mode === "in") {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } else {
+          const n = name.value.trim().slice(0, 50);
+          const cred = await createUserWithEmailAndPassword(auth, email, pass);
+          await updateProfile(cred.user, {displayName: n});
+          try { await setDoc(doc(db, "users", cred.user.uid), {name: n, email: email.toLowerCase()}, {merge: true}); } catch (e) {}
+          if (cfg.requireVerify) {
+            try { await sendEmailVerification(cred.user); } catch (e) {}
+            alert("আপনার ইমেইলে একটা ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)। লিংকে চাপ দিয়ে ভেরিফাই করুন।");
+          }
+        }
+      } catch (e) { msg.textContent = aerr(e); go.disabled = false; }
+    }}, mode === "in" ? "লগইন" : "অ্যাকাউন্ট খুলুন");
+    const fp = el("a", {href: "#", onclick: async e => {
+      e.preventDefault();
+      const email = em.value.trim();
+      if (!email) return msg.textContent = "আগে ইমেইল লিখুন।";
+      try { await sendPasswordResetEmail(auth, email); msg.textContent = "পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।"; }
+      catch (er) { msg.textContent = aerr(er); }
+    }}, "পাসওয়ার্ড ভুলে গেছেন?");
+    const sw = el("a", {href: "#", onclick: e => { e.preventDefault(); mode = mode === "in" ? "up" : "in"; render(); }},
+      mode === "in" ? "নতুন অ্যাকাউন্ট খুলুন" : "আগে থেকে অ্যাকাউন্ট আছে? লগইন করুন");
+    card.append(el("b", {}, mode === "in" ? "লগইন" : "নতুন অ্যাকাউন্ট"), el("div", {class: "meta"}, ""));
+    if (mode === "up") card.append(name);
+    card.append(em, pw, el("div", {class: "row"}, go), msg,
+      el("div", {class: "meta", style: "margin-top:10px"}, sw, " · ", fp),
+      el("div", {class: "row"}, el("button", {class: "sec", onclick: googleLogin}, "Google দিয়ে চালিয়ে যান")));
+  };
+  render();
 }
 
 async function listPosts(q, staffMode, showStatus) {
@@ -140,6 +224,28 @@ async function listPosts(q, staffMode, showStatus) {
   }
 }
 
+async function report(type, targetId, postId, authorUid, authorName, preview) {
+  if (!user) return alert("রিপোর্ট করতে লগইন করুন।");
+  const reason = prompt("রিপোর্টের কারণ সংক্ষেপে লিখুন:");
+  if (reason === null) return;
+  try {
+    await setDoc(doc(db, "reports", user.uid + "_" + targetId), {
+      type, targetId, postId, authorUid, authorName: authorName || "",
+      preview: (preview || "").slice(0, 200), reason: reason.slice(0, 300),
+      reporterUid: user.uid, createdAt: serverTimestamp()
+    });
+    alert("রিপোর্ট জমা হয়েছে। ধন্যবাদ।");
+  } catch (e) { alert("রিপোর্ট করা যায়নি (হয়তো আগেই করেছেন): " + e.message); }
+}
+
+async function banUser(uid, name) {
+  if (!confirm((name || "এই ইউজার") + " কে ব্যান করবেন?")) return;
+  try {
+    await setDoc(doc(db, "banned", uid), {name: name || "", at: serverTimestamp()});
+    alert("ব্যান করা হয়েছে।");
+  } catch (e) { alert("ব্যান করা যায়নি (অ্যাডমিন/মডারেটরকে ব্যান করা যায় না, আগেই ব্যান থাকলেও এরর আসে): " + e.message); }
+}
+
 function postCard(p, staffMode, showStatus) {
   const c = el("div", {class: "card"});
   const when = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleString("bn-BD") : "";
@@ -155,6 +261,10 @@ function postCard(p, staffMode, showStatus) {
   if (staffMode) {
     row.append(el("button", {class: "ok", onclick: () => setStatus(p.id, "approved")}, "Approve"));
     row.append(el("button", {class: "no", onclick: () => setStatus(p.id, "rejected")}, "Reject"));
+    row.append(el("button", {class: "sec", onclick: () => banUser(p.uid, p.authorName)}, "ইউজার ব্যান"));
+  }
+  if (user && p.status === "approved" && p.uid !== user.uid) {
+    row.append(el("button", {class: "sec", onclick: () => report("post", p.id, p.id, p.uid, p.authorName, p.text || p.mediaType || "মিডিয়া")}, "⚠️ রিপোর্ট"));
   }
   if (staffMode || p.uid === user?.uid) {
     row.append(el("button", {class: "sec", onclick: async () => {
@@ -184,6 +294,8 @@ function engagement(p, c) {
   })();
   likeBtn.onclick = async () => {
     if (!user) return alert("লাইক দিতে লগইন করুন।");
+    const why = blockReason();
+    if (why && !liked) return alert(why);
     likeBtn.disabled = true;
     try {
       if (liked) { await deleteDoc(likeRef); liked = false; count--; }
@@ -221,6 +333,12 @@ function loadComments(p, box) {
             catch (er) { alert("সমস্যা: " + er.message); }
           }}, "মুছুন"));
         }
+        if (user && cm.uid !== user.uid) {
+          row.append(" ", el("a", {href: "#", onclick: e => {
+            e.preventDefault();
+            report("comment", cm.id, p.id, cm.uid, cm.authorName, cm.text);
+          }}, "রিপোর্ট"));
+        }
         list.append(row);
       });
     } catch (e) { list.textContent = "সমস্যা: " + e.message; }
@@ -230,10 +348,12 @@ function loadComments(p, box) {
     const send = el("button", {onclick: async () => {
       const t = inp.value.trim();
       if (!t) return;
+      const why = blockReason();
+      if (why) return alert(why);
       send.disabled = true;
       try {
         await addDoc(collection(db, "posts", p.id, "comments"), {
-          uid: user.uid, authorName: user.displayName || "অজ্ঞাত",
+          uid: user.uid, authorName: nm(),
           text: t.slice(0, 1000), createdAt: serverTimestamp()
         });
         inp.value = ""; await refresh();
@@ -254,6 +374,8 @@ async function setStatus(id, status) {
 
 function newPost() {
   const m = $("#main");
+  const why0 = blockReason();
+  if (why0) { m.append(el("div", {class: "card"}, why0)); return; }
   const ta = el("textarea", {rows: 5, placeholder: "আপনার লেখা..."});
   const file = el("input", {type: "file", accept: "image/*,video/*"});
   const msg = el("div", {class: "small"});
@@ -265,6 +387,9 @@ function newPost() {
     if (f && f.size > MAX_MB * 1048576) return msg.textContent = "ফাইল " + MAX_MB + "MB এর বেশি হতে পারবে না।";
     btn.disabled = true; msg.textContent = "পোস্ট হচ্ছে...";
     try {
+      await loadCfg();
+      const why = blockReason();
+      if (why) throw new Error(why);
       let mediaUrl = "", mediaType = "";
       if (f) {
         const type = f.type.startsWith("video") ? "video" : "image";
@@ -274,21 +399,88 @@ function newPost() {
         if (!j.secure_url) throw new Error("আপলোড ব্যর্থ");
         mediaUrl = j.secure_url; mediaType = type;
       }
+      const status = cfg.autoApprove ? "approved" : "pending";
       await addDoc(collection(db, "posts"), {
-        uid: user.uid, authorName: user.displayName || "অজ্ঞাত",
+        uid: user.uid, authorName: nm(),
         text: text.slice(0, 5000), mediaUrl, mediaType,
-        status: "pending", createdAt: serverTimestamp()
+        status, createdAt: serverTimestamp()
       });
-      alert("পোস্ট জমা হয়েছে। অনুমোদনের পর সবাই দেখতে পাবে।");
-      show("mine");
+      alert(status === "approved" ? "পোস্ট প্রকাশিত হয়েছে।" : "পোস্ট জমা হয়েছে। অনুমোদনের পর সবাই দেখতে পাবে।");
+      show(status === "approved" ? "home" : "mine");
     } catch (e) { msg.textContent = "সমস্যা: " + e.message; btn.disabled = false; }
   }}, "পোস্ট করুন");
   m.append(el("div", {class: "card"}, ta, file, el("div", {class: "row"}, btn), msg));
 }
 
+async function reportsPanel() {
+  const m = $("#main");
+  const box = el("div", {}, el("div", {class: "center"}, "লোড হচ্ছে..."));
+  m.append(box);
+  try {
+    const s = await getDocs(collection(db, "reports"));
+    box.innerHTML = "";
+    const items = s.docs.map(d => ({id: d.id, ...d.data()}))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    box.append(el("b", {}, "রিপোর্ট (" + items.length + ")"));
+    if (!items.length) box.append(el("div", {class: "card"}, "কোনো রিপোর্ট নেই।"));
+    items.forEach(r => {
+      const c = el("div", {class: "card"},
+        el("div", {class: "meta"}, (r.type === "post" ? "পোস্ট" : "কমেন্ট") + " · " + (r.authorName || "অজ্ঞাত")),
+        el("div", {style: "white-space:pre-wrap"}, r.preview || ""),
+        el("div", {class: "meta", style: "margin-top:6px"}, "কারণ: " + (r.reason || "-")));
+      const row = el("div", {class: "row"});
+      row.append(el("button", {class: "no", onclick: async () => {
+        if (!confirm("কনটেন্ট মুছে ফেলবেন?")) return;
+        try {
+          if (r.type === "post") await deleteDoc(doc(db, "posts", r.targetId));
+          else await deleteDoc(doc(db, "posts", r.postId, "comments", r.targetId));
+          await deleteDoc(doc(db, "reports", r.id)); show("reports");
+        } catch (e) { alert("সমস্যা: " + e.message); }
+      }}, "কনটেন্ট মুছুন"));
+      row.append(el("button", {class: "sec", onclick: () => banUser(r.authorUid, r.authorName)}, "ইউজার ব্যান"));
+      row.append(el("button", {class: "sec", onclick: async () => {
+        try { await deleteDoc(doc(db, "reports", r.id)); show("reports"); }
+        catch (e) { alert("সমস্যা: " + e.message); }
+      }}, "বাদ দিন"));
+      c.append(row); box.append(c);
+    });
+    const bs = await getDocs(collection(db, "banned"));
+    const bc = el("div", {class: "card"}, el("b", {}, "ব্যান করা ইউজার (" + bs.size + ")"));
+    bs.docs.forEach(d => {
+      bc.append(el("div", {class: "row"}, el("span", {}, d.data().name || d.id),
+        el("button", {class: "sec", onclick: async () => {
+          try { await deleteDoc(doc(db, "banned", d.id)); show("reports"); }
+          catch (e) { alert("সমস্যা: " + e.message); }
+        }}, "আনব্যান")));
+    });
+    box.append(bc);
+  } catch (e) { box.innerHTML = ""; box.append(el("div", {class: "center"}, "সমস্যা: " + e.message)); }
+}
+
+async function settingsPanel() {
+  const m = $("#main");
+  await loadCfg();
+  const mk = (label, key, help) => {
+    const on = cfg[key];
+    const btn = el("button", {class: on ? "no" : "ok", onclick: async () => {
+      btn.disabled = true;
+      try {
+        await setDoc(doc(db, "settings", "config"), {...cfg, [key]: !on});
+        await loadCfg(); show("settings");
+      } catch (e) { alert("সমস্যা: " + e.message); btn.disabled = false; }
+    }}, on ? "বন্ধ করুন" : "চালু করুন");
+    return el("div", {class: "card"},
+      el("div", {}, label + ": ", el("b", {}, on ? "চালু" : "বন্ধ")),
+      el("div", {class: "meta"}, help), el("div", {class: "row"}, btn));
+  };
+  m.append(
+    mk("অটো-অ্যাপ্রুভ", "autoApprove", "চালু থাকলে নতুন পোস্ট সাথে সাথে সবার জন্য প্রকাশিত হবে। বন্ধ থাকলে অ্যাডমিন/মডারেটর অ্যাপ্রুভ করার পর দেখা যাবে।"),
+    mk("ইমেইল ভেরিফিকেশন বাধ্যতামূলক", "requireVerify", "চালু থাকলে ইমেইলে ভেরিফাই না করা ইউজার পোস্ট, লাইক বা কমেন্ট করতে পারবে না। Google দিয়ে লগইন করা ইউজার আগে থেকেই ভেরিফাইড।"));
+}
+
 function rolesPanel() {
   const m = $("#main");
-  const em = el("input", {type: "email", placeholder: "ইউজারের Gmail"});
+  const em = el("input", {type: "email", placeholder: "ইউজারের ইমেইল"});
   const msg = el("div", {class: "small"});
   const act = async r => {
     const email = em.value.trim().toLowerCase();
@@ -303,7 +495,7 @@ function rolesPanel() {
     } catch (e) { msg.textContent = "সমস্যা: " + e.message; }
   };
   m.append(el("div", {class: "card"},
-    el("b", {}, "রোল পরিবর্তন"), el("div", {class: "meta"}, "ইউজার আগে একবার Gmail দিয়ে লগইন করে থাকতে হবে।"),
+    el("b", {}, "রোল পরিবর্তন"), el("div", {class: "meta"}, "ইউজার আগে একবার লগইন করে থাকতে হবে।"),
     em, el("div", {class: "row"},
       el("button", {onclick: () => act("moderator")}, "মডারেটর বানান"),
       el("button", {class: "ok", onclick: () => act("admin")}, "অ্যাডমিন বানান"),
@@ -320,10 +512,24 @@ async function loadRoles() {
 }
 
 function profile() {
-  $("#main").append(el("div", {class: "card"},
-    el("div", {}, user.displayName || ""), el("div", {class: "meta"}, user.email),
+  const card = el("div", {class: "card"},
+    el("div", {}, nm()), el("div", {class: "meta"}, user.email),
     el("div", {}, "রোল: " + role),
-    el("div", {class: "meta"}, "আপনার UID:"), el("div", {class: "small"}, user.uid)));
+    el("div", {class: "meta"}, "আপনার UID:"), el("div", {class: "small"}, user.uid));
+  if (banned) card.append(el("div", {class: "meta", style: "margin-top:8px"}, "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।"));
+  if (user.providerData.some(p => p.providerId === "password") && !user.emailVerified) {
+    card.append(el("div", {class: "meta", style: "margin-top:10px"}, "আপনার ইমেইল ভেরিফাই করা হয়নি" + (cfg.requireVerify ? " (এখন পোস্ট, লাইক ও কমেন্টের জন্য জরুরি)।" : ".")),
+      el("div", {class: "row"},
+        el("button", {onclick: async () => {
+          try { await sendEmailVerification(user); alert("ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।"); }
+          catch (e) { alert(aerr(e)); }
+        }}, "ভেরিফিকেশন লিংক পাঠান"),
+        el("button", {class: "sec", onclick: async () => {
+          try { await user.reload(); await user.getIdToken(true); show("me"); }
+          catch (e) { alert(aerr(e)); }
+        }}, "ভেরিফাই করেছি, চেক করুন")));
+  }
+  $("#main").append(card);
 }
 </script>
 </body>
