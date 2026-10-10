@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>কমিউনিটি সাইট</title>
-<meta name="description" content="সবার জন্য খোলা কমিউনিটি: ছবি, ভিডিও ও লেখা শেয়ার করুন">
+<title>Social platform bd</title>
+<meta name="description" content="Social platform bd – ছবি, ভিডিও ও লেখা শেয়ার করুন | Share photos, videos and posts">
 <meta name="theme-color" content="#1d4ed8">
-<meta property="og:title" content="কমিউনিটি সাইট">
-<meta property="og:description" content="সবার জন্য খোলা কমিউনিটি: ছবি, ভিডিও ও লেখা শেয়ার করুন">
+<meta property="og:title" content="Social platform bd">
+<meta property="og:description" content="ছবি, ভিডিও ও লেখা শেয়ার করুন | Share photos, videos and posts">
 <meta property="og:type" content="website">
 <style>
 *{box-sizing:border-box}
@@ -34,12 +34,16 @@ textarea,input[type=text],input[type=email],input[type=password]{width:100%;padd
 .cm{padding:6px 0;border-top:1px solid #eee;font-size:14px;white-space:pre-wrap}
 .row input{flex:1;margin-bottom:0}
 a{color:#1d4ed8}
+#auth{display:flex;gap:6px}
+footer{max-width:640px;margin:0 auto;padding:6px 12px 30px;text-align:center;font-size:12px;color:#666}
+footer a{margin:0 6px}
 </style>
 </head>
 <body>
-<header><h1>কমিউনিটি সাইট</h1><div id="auth"></div></header>
+<header><h1>Social platform bd</h1><div id="auth"></div></header>
 <nav id="nav"></nav>
 <main id="main"></main>
+<footer id="foot"></footer>
 
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -64,25 +68,269 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+const SITE = "Social platform bd";
+const CONTACT_EMAIL = "socialplatformbd.help@gmail.com";
+let lang = "bn";
+try { lang = localStorage.getItem("lang") === "en" ? "en" : "bn"; } catch (e) {}
+document.documentElement.lang = lang;
+const EN = {
+ "অজ্ঞাত": "Unknown",
+ "সমস্যা: ": "Error: ",
+ "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।": "Your account has been blocked.",
+ "এখন পোস্ট, লাইক বা কমেন্ট করতে আগে ইমেইল ভেরিফাই করতে হবে। প্রোফাইল ট্যাবে গিয়ে ভেরিফিকেশন লিংক পাঠান।": "You must verify your email before posting, reacting or commenting. Go to the Profile tab and send a verification link.",
+ "নিয়মাবলী": "Rules",
+ "প্রাইভেসি পলিসি": "Privacy Policy",
+ "আমাদের সম্পর্কে": "About Us",
+ "← হোম": "← Home",
+ "যোগাযোগ: ": "Contact: ",
+ "লগইন / সাইন আপ": "Log in / Sign up",
+ "লগআউট": "Log out",
+ "হোম": "Home",
+ "জনপ্রিয়": "Popular",
+ "ফলো করা": "Following",
+ "নতুন পোস্ট": "New post",
+ "আমার পোস্ট": "My posts",
+ "অপেক্ষমাণ": "Pending",
+ "রিপোর্ট": "Reports",
+ "রোল": "Roles",
+ "সেটিংস": "Settings",
+ "প্রোফাইল": "Profile",
+ "এই পেজ দেখতে লগইন করুন।": "Please log in to view this page.",
+ "আপনার নাম": "Your name",
+ "ইমেইল": "Email",
+ "পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)": "Password (at least 6 characters)",
+ "ইমেইল ও পাসওয়ার্ড দিন।": "Enter your email and password.",
+ "আপনার নাম দিন।": "Enter your name.",
+ "অপেক্ষা করুন...": "Please wait...",
+ "আপনার ইমেইলে একটা ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)। লিংকে চাপ দিয়ে ভেরিফাই করুন।": "A verification link has been sent to your email (check your spam folder too). Tap the link to verify.",
+ "লগইন": "Log in",
+ "অ্যাকাউন্ট খুলুন": "Create account",
+ "আগে ইমেইল লিখুন।": "Enter your email first.",
+ "পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।": "A password reset link has been sent (check your spam folder too).",
+ "পাসওয়ার্ড ভুলে গেছেন?": "Forgot password?",
+ "নতুন অ্যাকাউন্ট খুলুন": "Create a new account",
+ "আগে থেকে অ্যাকাউন্ট আছে? লগইন করুন": "Already have an account? Log in",
+ "নতুন অ্যাকাউন্ট": "New account",
+ "Google দিয়ে চালিয়ে যান": "Continue with Google",
+ "লোড হচ্ছে...": "Loading...",
+ "কোনো পোস্ট নেই।": "No posts yet.",
+ "সমস্যা হয়েছে: ": "Something went wrong: ",
+ "👉 এখানে চেপে ইনডেক্স তৈরি করুন (শুধু অ্যাডমিনের জন্য)": "👉 Tap here to create the index (admins only)",
+ "স্বাগতম!": "Welcome!",
+ "ছবি, ভিডিও ও লেখা শেয়ার করুন, কমেন্ট ও রিঅ্যাকশন দিন। পোস্ট করতে বিনামূল্যে অ্যাকাউন্ট খুলুন।": "Share photos, videos and posts, comment and react. Create a free account to post.",
+ "আরও দেখুন": "Load more",
+ "← সব পোস্ট": "← All posts",
+ "এই পোস্টটি পাওয়া যায়নি বা আপনি এটি দেখতে পারবেন না।": "This post was not found or you cannot view it.",
+ "লিংক কপি হয়েছে।": "Link copied.",
+ "লিংক কপি করুন:": "Copy the link:",
+ "সাম্প্রতিক ৩০টি পোস্টের মধ্যে সবচেয়ে বেশি রিঅ্যাকশন ও কমেন্ট পাওয়া পোস্ট": "Posts with the most reactions and comments among the latest 30",
+ "এখনো কোনো জনপ্রিয় পোস্ট নেই।": "No popular posts yet.",
+ "✓ ফলো করছেন": "✓ Following",
+ "➕ ফলো করুন": "➕ Follow",
+ "ইউজার": "User",
+ " এর পোস্ট": "'s posts",
+ "↗ প্রোফাইল শেয়ার": "↗ Share profile",
+ "প্রকাশিত পোস্ট: ": "Published posts: ",
+ " · ফলোয়ার: ": " · Followers: ",
+ "এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।": "This user has no published posts.",
+ "আপনি যাদের ফলো করেন তাদের পোস্ট (সর্বোচ্চ ৩০ জনের)": "Posts from people you follow (up to 30 people)",
+ "আপনি এখনো কাউকে ফলো করেননি। কোনো লেখকের নামে চেপে তার প্রোফাইলে গিয়ে ফলো করুন।": "You are not following anyone yet. Tap an author's name to open their profile and follow them.",
+ "ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।": "The people you follow have no published posts.",
+ "🔔 নোটিফিকেশন": "🔔 Notifications",
+ "কোনো নোটিফিকেশন নেই।": "No notifications.",
+ "কেউ": "Someone",
+ " আপনার পোস্টে কমেন্ট করেছেন: ": " commented on your post: ",
+ " আপনার পোস্টে রিঅ্যাকশন দিয়েছেন ": " reacted to your post ",
+ " আপনাকে ফলো করেছেন": " started following you",
+ "আপনার পোস্টটি অনুমোদিত হয়েছে এবং এখন সবাই দেখতে পাচ্ছে": "Your post has been approved and is now visible to everyone",
+ "আপনার পোস্টটি বাতিল করা হয়েছে": "Your post was rejected",
+ "নতুন নোটিফিকেশন": "New notification",
+ "রিপোর্ট করতে লগইন করুন।": "Please log in to report.",
+ "রিপোর্টের কারণ সংক্ষেপে লিখুন:": "Briefly describe the reason for your report:",
+ "রিপোর্ট জমা হয়েছে। ধন্যবাদ।": "Report submitted. Thank you.",
+ "রিপোর্ট করা যায়নি (হয়তো আগেই করেছেন): ": "Could not report (you may have already reported): ",
+ "{n} কে ব্যান করবেন?": "Ban {n}?",
+ "এই ইউজার": "this user",
+ "ব্যান করা হয়েছে।": "User banned.",
+ "ব্যান করা যায়নি (অ্যাডমিন/মডারেটরকে ব্যান করা যায় না, আগেই ব্যান থাকলেও এরর আসে): ": "Could not ban (admins/moderators cannot be banned, and already-banned users also cause an error): ",
+ "লিংক": "Link",
+ "অনুমোদিত": "Approved",
+ "বাতিল": "Rejected",
+ "ইউজার ব্যান": "Ban user",
+ "মিডিয়া": "Media",
+ "⚠️ রিপোর্ট": "⚠️ Report",
+ "মুছে ফেলবেন?": "Delete this?",
+ "মুছুন": "Delete",
+ "💬 কমেন্ট": "💬 Comment",
+ "↗ শেয়ার": "↗ Share",
+ "✖ সরান": "✖ Remove",
+ "রিঅ্যাকশন দিতে লগইন করুন।": "Please log in to react.",
+ "এখনো কোনো কমেন্ট নেই।": "No comments yet.",
+ "কমেন্ট মুছবেন?": "Delete this comment?",
+ "কমেন্ট লিখুন...": "Write a comment...",
+ "পাঠান": "Send",
+ "কমেন্ট করতে লগইন করুন।": "Please log in to comment.",
+ "মডারেটর": "Moderator",
+ "আপনার লেখা...": "Write something...",
+ "আমি ": "I have read and accept the ",
+ " পড়েছি ও মানছি": "",
+ "পোস্ট করতে নিয়মাবলী মানতে হবে (টিক দিন)।": "You must accept the rules to post (tick the box).",
+ "কিছু লিখুন বা ফাইল দিন।": "Write something or add a file.",
+ "ছবি/ভিডিও আপলোড এখনো চালু হয়নি।": "Photo/video upload is not enabled yet.",
+ "শুধু ছবি বা ভিডিও দেওয়া যাবে।": "Only photos or videos are allowed.",
+ "ভিডিও সর্বোচ্চ {n}MB হতে পারবে।": "Videos can be at most {n}MB.",
+ "ছবি সর্বোচ্চ {n}MB হতে পারবে।": "Photos can be at most {n}MB.",
+ "পোস্ট হচ্ছে...": "Posting...",
+ "আপলোড ব্যর্থ": "Upload failed",
+ "পোস্ট প্রকাশিত হয়েছে।": "Your post is published.",
+ "পোস্ট জমা হয়েছে। অনুমোদনের পর সবাই দেখতে পাবে।": "Your post was submitted. Everyone can see it after approval.",
+ "পোস্ট করুন": "Post",
+ "রিপোর্ট (": "Reports (",
+ "কোনো রিপোর্ট নেই।": "No reports.",
+ "পোস্ট": "Post",
+ "কমেন্ট": "Comment",
+ "কারণ: ": "Reason: ",
+ "কনটেন্ট মুছে ফেলবেন?": "Delete this content?",
+ "কনটেন্ট মুছুন": "Delete content",
+ "বাদ দিন": "Dismiss",
+ "ব্যান করা ইউজার (": "Banned users (",
+ "আনব্যান": "Unban",
+ "বন্ধ করুন": "Turn off",
+ "চালু করুন": "Turn on",
+ "চালু": "On",
+ "বন্ধ": "Off",
+ "অটো-অ্যাপ্রুভ": "Auto-approve",
+ "চালু থাকলে নতুন পোস্ট সাথে সাথে সবার জন্য প্রকাশিত হবে। বন্ধ থাকলে অ্যাডমিন/মডারেটর অ্যাপ্রুভ করার পর দেখা যাবে।": "When on, new posts are published to everyone immediately. When off, they appear after an admin/moderator approves them.",
+ "ইমেইল ভেরিফিকেশন বাধ্যতামূলক": "Require email verification",
+ "চালু থাকলে ইমেইলে ভেরিফাই না করা ইউজার পোস্ট, লাইক বা কমেন্ট করতে পারবে না। Google দিয়ে লগইন করা ইউজার আগে থেকেই ভেরিফাইড।": "When on, users who have not verified their email cannot post, react or comment. Google login users are already verified.",
+ "ইউজারের ইমেইল": "User's email",
+ "নিজের রোল এখান থেকে বদলানো যাবে না।": "You cannot change your own role here.",
+ "শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন বানাতে পারে।": "Only the main admin (owner) can make admins.",
+ "এই ইমেইলে কেউ লগইন করেনি। আগে তাকে একবার লগইন করতে বলুন।": "Nobody has logged in with this email. Ask them to log in once first.",
+ "হয়েছে: ": "Done: ",
+ "করা যায়নি (এই রোল বদলানোর অনুমতি আপনার নেই): ": "Could not do it (you do not have permission to change this role): ",
+ "রোল পরিবর্তন": "Change role",
+ "ইউজার আগে একবার লগইন করে থাকতে হবে। শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন যোগ বা সরাতে পারে; অন্য অ্যাডমিনরা শুধু মডারেটর যোগ বা সরাতে পারে।": "The user must have logged in at least once. Only the main admin (owner) can add or remove admins; other admins can only add or remove moderators.",
+ "মডারেটর বানান": "Make moderator",
+ "অ্যাডমিন বানান": "Make admin",
+ "রোল সরান": "Remove role",
+ "বর্তমান অ্যাডমিন/মডারেটর": "Current admins/moderators",
+ "রোল: ": "Role: ",
+ "আপনার UID:": "Your UID:",
+ "আমার পাবলিক পেজ দেখুন": "View my public page",
+ "আপনার ইমেইল ভেরিফাই করা হয়নি": "Your email is not verified",
+ " (এখন পোস্ট, লাইক ও কমেন্টের জন্য জরুরি)।": " (now required for posting, reacting and commenting).",
+ "ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।": "Verification link sent (check your spam folder too).",
+ "ভেরিফিকেশন লিংক পাঠান": "Send verification link",
+ "ভেরিফাই করেছি, চেক করুন": "I've verified, check again",
+ "এই ইমেইলে আগেই অ্যাকাউন্ট আছে। লগইন করুন।": "An account already exists with this email. Please log in.",
+ "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।": "Password must be at least 6 characters.",
+ "ইমেইলটি সঠিক নয়।": "The email address is not valid.",
+ "ইমেইল বা পাসওয়ার্ড ভুল।": "Wrong email or password.",
+ "এই ইমেইলে অ্যাকাউন্ট নেই।": "No account with this email.",
+ "পাসওয়ার্ড ভুল।": "Wrong password.",
+ "অনেকবার চেষ্টা করেছেন, একটু পরে আবার চেষ্টা করুন।": "Too many attempts, please try again later.",
+ "Firebase-এ Email/Password লগইন এখনো চালু করা হয়নি।": "Email/Password login is not enabled in Firebase yet.",
+ "ইন্টারনেট সংযোগে সমস্যা।": "Internet connection problem."
+};
+const tx = s => (lang === "en" && EN[s] !== undefined) ? EN[s] : s;
+const loc = () => lang === "en" ? "en-GB" : "bn-BD";
+function setLang(l) {
+  lang = l;
+  try { localStorage.setItem("lang", l); } catch (e) {}
+  document.documentElement.lang = l;
+  renderAuth(); renderFoot(); renderNav(); show(tab);
+}
+/*NOI18N*/
+const LANG_LABEL = {bn: "English", en: "বাংলা"};
+const PAGES = {
+  rules: {
+    title: {bn: "নিয়মাবলী", en: "Community Rules"},
+    bn: [
+      "সবার সাথে ভদ্র ও সম্মানজনক আচরণ করুন। গালিগালাজ, হয়রানি, হুমকি ও ঘৃণামূলক বক্তব্য নিষিদ্ধ।",
+      "অশ্লীল, যৌনতাপূর্ণ বা অতিরিক্ত সহিংস ছবি, ভিডিও ও লেখা পোস্ট করা যাবে না।",
+      "শিশুদের ক্ষতি করে বা শিশুদের যৌনভাবে উপস্থাপন করে এমন কোনো কনটেন্ট কঠোরভাবে নিষিদ্ধ। এমন কিছু পাওয়া গেলে সাথে সাথে অ্যাকাউন্ট স্থায়ীভাবে ব্লক করা হবে।",
+      "অন্যের ছবি, ভিডিও বা লেখা অনুমতি ছাড়া বা কপিরাইট ভেঙে পোস্ট করবেন না। আপনি যা পোস্ট করছেন তা আপনার নিজের, অথবা তা পোস্ট করার অনুমতি আপনার আছে।",
+      "ভুয়া খবর, প্রতারণা, স্প্যাম ও অযাচিত বিজ্ঞাপন নিষিদ্ধ।",
+      "অন্যের ব্যক্তিগত তথ্য (ফোন নম্বর, ঠিকানা, ব্যক্তিগত ছবি) তার অনুমতি ছাড়া প্রকাশ করবেন না।",
+      "অ্যাডমিন ও মডারেটর নিয়ম ভাঙা যেকোনো কনটেন্ট মুছে ফেলতে এবং প্রয়োজনে অ্যাকাউন্ট ব্লক করতে পারেন।",
+      "আপত্তিকর কিছু দেখলে পোস্ট বা কমেন্টের পাশের রিপোর্ট বাটন ব্যবহার করুন।"
+    ],
+    en: [
+      "Be kind and respectful to everyone. Abuse, harassment, threats and hate speech are not allowed.",
+      "Do not post obscene, sexual or extremely violent photos, videos or text.",
+      "Any content that harms children or sexualizes them is strictly prohibited. Such accounts will be blocked permanently and immediately.",
+      "Do not post other people's photos, videos or writing without permission or in violation of copyright. What you post must be your own, or you must have permission to post it.",
+      "Fake news, scams, spam and unwanted advertising are not allowed.",
+      "Do not share other people's private information (phone numbers, addresses, private photos) without their permission.",
+      "Admins and moderators may remove any content that breaks the rules and block accounts when needed.",
+      "If you see something inappropriate, use the report button next to the post or comment."
+    ]
+  },
+  privacy: {
+    title: {bn: "প্রাইভেসি পলিসি", en: "Privacy Policy"},
+    bn: [
+      "আমরা যা সংগ্রহ করি: আপনার নাম ও ইমেইল (সাইন আপ বা Google লগইনের সময়), এবং আপনি যা পোস্ট, কমেন্ট, রিঅ্যাকশন বা ফলো করেন তার তথ্য।",
+      "সবার জন্য দৃশ্যমান: আপনার নাম, প্রকাশিত পোস্ট, কমেন্ট, রিঅ্যাকশনের সংখ্যা ও ফলো সম্পর্ক। আপনার ইমেইল অন্য সাধারণ ইউজারদের দেখানো হয় না, তবে সাইটের অ্যাডমিনরা রোল পরিচালনার জন্য তা দেখতে পারেন।",
+      "পাসওয়ার্ড আমরা নিজে রাখি না; লগইন ও পাসওয়ার্ড ব্যবস্থাপনা Google Firebase Authentication-এর মাধ্যমে হয়।",
+      "লেখা ও অন্যান্য ডাটা Google Firebase (Firestore)-এ এবং ছবি-ভিডিও Cloudinary-তে সংরক্ষিত থাকে।",
+      "আপনার ভাষার পছন্দ ও লগইন অবস্থা মনে রাখতে আপনার ব্রাউজারে ছোট ডাটা (লোকাল স্টোরেজ/কুকি) রাখা হয়।",
+      "আমরা আপনার তথ্য বিক্রি করি না।",
+      "আপনার পোস্ট মুছতে চাইলে নিজের পোস্টের মুছুন বাটন ব্যবহার করুন, অথবা সাইটের অ্যাডমিনের সাথে যোগাযোগ করুন।",
+      "এই নীতি সময়ে সময়ে বদলাতে পারে।"
+    ],
+    en: [
+      "What we collect: your name and email (when you sign up or use Google login), and information about what you post, comment, react to or follow.",
+      "Visible to everyone: your name, published posts, comments, reaction counts and follow relationships. Your email is not shown to other regular users, but site admins can see it to manage roles.",
+      "We do not store your password ourselves; login and password management are handled by Google Firebase Authentication.",
+      "Text and other data are stored in Google Firebase (Firestore), and photos and videos are stored on Cloudinary.",
+      "Small pieces of data (local storage/cookies) are kept in your browser to remember your language choice and login state.",
+      "We do not sell your information.",
+      "To remove your post, use the delete button on your own post, or contact the site admin.",
+      "This policy may change from time to time."
+    ]
+  },
+  about: {
+    title: {bn: "আমাদের সম্পর্কে", en: "About Us"},
+    bn: [
+      "Social platform bd একটি খোলা অনলাইন কমিউনিটি, যেখানে যে কেউ ছবি, ভিডিও ও লেখা শেয়ার করতে পারে।",
+      "সবাই বিনামূল্যে অ্যাকাউন্ট খুলে পোস্ট করতে পারেন। অটো-অ্যাপ্রুভ বন্ধ থাকলে অ্যাডমিন ও মডারেটর পোস্ট দেখে অনুমোদন দিলে তবেই তা সবার সামনে আসে।",
+      "পোস্টে রিঅ্যাকশন দিন, কমেন্ট করুন, পছন্দের লেখককে ফলো করুন এবং নিজের পছন্দের পোস্ট বন্ধুদের সাথে শেয়ার করুন।",
+      "সাইটটি সুন্দর ও নিরাপদ রাখতে আমাদের নিয়মাবলী মেনে চলুন।"
+    ],
+    en: [
+      "Social platform bd is an open online community where anyone can share photos, videos and posts.",
+      "Anyone can create a free account and post. When auto-approve is off, posts become visible to everyone only after an admin or moderator approves them.",
+      "React to posts, comment, follow your favorite authors and share posts you like with friends.",
+      "Please follow our community rules to keep the site friendly and safe."
+    ]
+  }
+};
+/*END-NOI18N*/
+
 const parseHash = () => {
   let m = location.hash.match(/^#post=([A-Za-z0-9]+)/);
   if (m) return {t: "post", id: m[1]};
   m = location.hash.match(/^#user=([A-Za-z0-9]+)/);
   if (m) return {t: "user", id: m[1]};
+  m = location.hash.match(/^#page=(rules|privacy|about)/);
+  if (m) return {t: "page", id: m[1]};
   return null;
 };
 const r0 = parseHash();
 let openPostId = r0 && r0.t === "post" ? r0.id : null;
 let openUserId = r0 && r0.t === "user" ? r0.id : null;
-let user = null, role = "user", tab = openPostId ? "post" : openUserId ? "user" : "home", banned = false;
+let openPage = r0 && r0.t === "page" ? r0.id : null;
+let user = null, role = "user", tab = openPostId ? "post" : openUserId ? "user" : openPage ? "page" : "home", banned = false;
 let popCache = null, unread = 0, badgeT = 0;
 let cfg = {autoApprove: false, requireVerify: false};
 const $ = s => document.querySelector(s);
 const isStaff = () => role === "admin" || role === "moderator" || role === "owner";
 const isAdmin = () => role === "admin" || role === "owner";
 const isOwner = () => role === "owner";
-const nm = () => user.displayName || (user.email || "").split("@")[0] || "অজ্ঞাত";
+const nm = () => user.displayName || (user.email || "").split("@")[0] || tx("অজ্ঞাত");
 
+/*NOI18N*/
 const AUTH_ERR = {
   "auth/email-already-in-use": "এই ইমেইলে আগেই অ্যাকাউন্ট আছে। লগইন করুন।",
   "auth/weak-password": "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।",
@@ -94,7 +342,8 @@ const AUTH_ERR = {
   "auth/operation-not-allowed": "Firebase-এ Email/Password লগইন এখনো চালু করা হয়নি।",
   "auth/network-request-failed": "ইন্টারনেট সংযোগে সমস্যা।"
 };
-const aerr = e => AUTH_ERR[e.code] || ("সমস্যা: " + e.message);
+/*END-NOI18N*/
+const aerr = e => AUTH_ERR[e.code] ? tx(AUTH_ERR[e.code]) : tx("সমস্যা: ") + e.message;
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -116,8 +365,8 @@ async function loadCfg() {
 }
 
 function blockReason() {
-  if (banned) return "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।";
-  if (cfg.requireVerify && !user.emailVerified) return "এখন পোস্ট, লাইক বা কমেন্ট করতে আগে ইমেইল ভেরিফাই করতে হবে। প্রোফাইল ট্যাবে গিয়ে ভেরিফিকেশন লিংক পাঠান।";
+  if (banned) return tx("আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।");
+  if (cfg.requireVerify && !user.emailVerified) return tx("এখন পোস্ট, লাইক বা কমেন্ট করতে আগে ইমেইল ভেরিফাই করতে হবে। প্রোফাইল ট্যাবে গিয়ে ভেরিফিকেশন লিংক পাঠান।");
   return "";
 }
 
@@ -133,14 +382,31 @@ onAuthStateChanged(auth, async u => {
     } catch (e) { console.error(e); }
     if (tab === "login") tab = "home";
   }
-  renderAuth(); renderNav(); show(tab);
+  renderAuth(); renderFoot(); renderNav(); show(tab);
   if (u) refreshBadge(true);
 });
 
+function renderFoot() {
+  const f = $("#foot"); f.innerHTML = "";
+  f.append(el("div", {}, el("a", {href: "#page=rules"}, tx("নিয়মাবলী")), el("a", {href: "#page=privacy"}, tx("প্রাইভেসি পলিসি")), el("a", {href: "#page=about"}, tx("আমাদের সম্পর্কে"))),
+    el("div", {style: "margin-top:6px"}, "© " + SITE));
+}
+
+function pageView() {
+  const m = $("#main");
+  const pg = PAGES[openPage];
+  m.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { openPage = null; show("home"); }}, tx("← হোম"))));
+  const c = el("div", {class: "card"}, el("b", {}, pg.title[lang]));
+  pg[lang].forEach(x => c.append(el("p", {style: "margin:10px 0;font-size:14px;line-height:1.6"}, x)));
+  if (CONTACT_EMAIL) c.append(el("p", {style: "font-size:14px"}, tx("যোগাযোগ: ") + CONTACT_EMAIL));
+  m.append(c);
+}
+
 function renderAuth() {
   const a = $("#auth"); a.innerHTML = "";
-  if (!user) a.append(el("button", {class: "sec", onclick: () => show("login")}, "লগইন / সাইন আপ"));
-  else a.append(el("button", {class: "sec", onclick: () => signOut(auth)}, "লগআউট"));
+  a.append(el("button", {class: "sec", onclick: () => setLang(lang === "bn" ? "en" : "bn")}, LANG_LABEL[lang]));
+  if (!user) a.append(el("button", {class: "sec", onclick: () => show("login")}, tx("লগইন / সাইন আপ")));
+  else a.append(el("button", {class: "sec", onclick: () => signOut(auth)}, tx("লগআউট")));
 }
 
 async function googleLogin() {
@@ -151,26 +417,27 @@ async function googleLogin() {
 
 function renderNav() {
   const n = $("#nav"); n.innerHTML = "";
-  const tabs = [["home", "হোম"], ["popular", "জনপ্রিয়"]];
-  if (user) tabs.push(["feed", "ফলো করা"], ["notif", "🔔" + (unread ? " " + unread : "")], ["new", "নতুন পোস্ট"], ["mine", "আমার পোস্ট"]);
-  if (isStaff()) tabs.push(["pending", "অপেক্ষমাণ"], ["reports", "রিপোর্ট"]);
-  if (isAdmin()) tabs.push(["roles", "রোল"], ["settings", "সেটিংস"]);
-  if (user) tabs.push(["me", "প্রোফাইল"]);
+  const tabs = [["home", tx("হোম")], ["popular", tx("জনপ্রিয়")]];
+  if (user) tabs.push(["feed", tx("ফলো করা")], ["notif", "🔔" + (unread ? " " + unread : "")], ["new", tx("নতুন পোস্ট")], ["mine", tx("আমার পোস্ট")]);
+  if (isStaff()) tabs.push(["pending", tx("অপেক্ষমাণ")], ["reports", tx("রিপোর্ট")]);
+  if (isAdmin()) tabs.push(["roles", tx("রোল")], ["settings", tx("সেটিংস")]);
+  if (user) tabs.push(["me", tx("প্রোফাইল")]);
   tabs.forEach(([k, l]) => n.append(el("button", {class: tab === k ? "on" : "", onclick: () => show(k)}, l)));
 }
 
 function show(t) {
   tab = t; renderNav(); refreshBadge(false);
   const m = $("#main"); m.innerHTML = "";
-  if (t !== "post" && t !== "user" && location.hash) history.replaceState(null, "", location.pathname + location.search);
+  if (t !== "post" && t !== "user" && t !== "page" && location.hash) history.replaceState(null, "", location.pathname + location.search);
   if (t === "post") return openPostId ? singlePost() : show("home");
   if (t === "user") return openUserId ? userPage() : show("home");
+  if (t === "page") return openPage ? pageView() : show("home");
   if (t === "login") return user ? show("home") : loginView();
   if (t === "home") return homeFeed();
   if (t === "popular") return popularFeed();
   if (!user) {
-    m.append(el("div", {class: "center"}, "এই পেজ দেখতে লগইন করুন।",
-      el("div", {class: "row", style: "justify-content:center"}, el("button", {onclick: () => show("login")}, "লগইন / সাইন আপ"))));
+    m.append(el("div", {class: "center"}, tx("এই পেজ দেখতে লগইন করুন।"),
+      el("div", {class: "row", style: "justify-content:center"}, el("button", {onclick: () => show("login")}, tx("লগইন / সাইন আপ")))));
     return;
   }
   if (t === "feed") return followingFeed();
@@ -190,15 +457,15 @@ function loginView() {
   const card = el("div", {class: "card"}); m.append(card);
   const render = () => {
     card.innerHTML = "";
-    const name = el("input", {type: "text", placeholder: "আপনার নাম"});
-    const em = el("input", {type: "email", placeholder: "ইমেইল"});
-    const pw = el("input", {type: "password", placeholder: "পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)"});
+    const name = el("input", {type: "text", placeholder: tx("আপনার নাম")});
+    const em = el("input", {type: "email", placeholder: tx("ইমেইল")});
+    const pw = el("input", {type: "password", placeholder: tx("পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)")});
     const msg = el("div", {class: "small"});
     const go = el("button", {onclick: async () => {
       const email = em.value.trim(), pass = pw.value;
-      if (!email || !pass) return msg.textContent = "ইমেইল ও পাসওয়ার্ড দিন।";
-      if (mode === "up" && !name.value.trim()) return msg.textContent = "আপনার নাম দিন।";
-      go.disabled = true; msg.textContent = "অপেক্ষা করুন...";
+      if (!email || !pass) return msg.textContent = tx("ইমেইল ও পাসওয়ার্ড দিন।");
+      if (mode === "up" && !name.value.trim()) return msg.textContent = tx("আপনার নাম দিন।");
+      go.disabled = true; msg.textContent = tx("অপেক্ষা করুন...");
       try {
         if (mode === "in") {
           await signInWithEmailAndPassword(auth, email, pass);
@@ -209,38 +476,38 @@ function loginView() {
           try { await setDoc(doc(db, "users", cred.user.uid), {name: n, email: email.toLowerCase()}, {merge: true}); } catch (e) {}
           if (cfg.requireVerify) {
             try { await sendEmailVerification(cred.user); } catch (e) {}
-            alert("আপনার ইমেইলে একটা ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)। লিংকে চাপ দিয়ে ভেরিফাই করুন।");
+            alert(tx("আপনার ইমেইলে একটা ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)। লিংকে চাপ দিয়ে ভেরিফাই করুন।"));
           }
         }
       } catch (e) { msg.textContent = aerr(e); go.disabled = false; }
-    }}, mode === "in" ? "লগইন" : "অ্যাকাউন্ট খুলুন");
+    }}, mode === "in" ? tx("লগইন") : tx("অ্যাকাউন্ট খুলুন"));
     const fp = el("a", {href: "#", onclick: async e => {
       e.preventDefault();
       const email = em.value.trim();
-      if (!email) return msg.textContent = "আগে ইমেইল লিখুন।";
-      try { await sendPasswordResetEmail(auth, email); msg.textContent = "পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।"; }
+      if (!email) return msg.textContent = tx("আগে ইমেইল লিখুন।");
+      try { await sendPasswordResetEmail(auth, email); msg.textContent = tx("পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।"); }
       catch (er) { msg.textContent = aerr(er); }
-    }}, "পাসওয়ার্ড ভুলে গেছেন?");
+    }}, tx("পাসওয়ার্ড ভুলে গেছেন?"));
     const sw = el("a", {href: "#", onclick: e => { e.preventDefault(); mode = mode === "in" ? "up" : "in"; render(); }},
-      mode === "in" ? "নতুন অ্যাকাউন্ট খুলুন" : "আগে থেকে অ্যাকাউন্ট আছে? লগইন করুন");
-    card.append(el("b", {}, mode === "in" ? "লগইন" : "নতুন অ্যাকাউন্ট"), el("div", {class: "meta"}, ""));
+      mode === "in" ? tx("নতুন অ্যাকাউন্ট খুলুন") : tx("আগে থেকে অ্যাকাউন্ট আছে? লগইন করুন"));
+    card.append(el("b", {}, mode === "in" ? tx("লগইন") : tx("নতুন অ্যাকাউন্ট")), el("div", {class: "meta"}, ""));
     if (mode === "up") card.append(name);
     card.append(em, pw, el("div", {class: "row"}, go), msg,
       el("div", {class: "meta", style: "margin-top:10px"}, sw, " · ", fp),
-      el("div", {class: "row"}, el("button", {class: "sec", onclick: googleLogin}, "Google দিয়ে চালিয়ে যান")));
+      el("div", {class: "row"}, el("button", {class: "sec", onclick: googleLogin}, tx("Google দিয়ে চালিয়ে যান"))));
   };
   render();
 }
 
 async function listPosts(q, staffMode, showStatus) {
   const m = $("#main");
-  m.append(el("div", {class: "center", id: "ld"}, "লোড হচ্ছে..."));
+  m.append(el("div", {class: "center", id: "ld"}, tx("লোড হচ্ছে...")));
   try {
     const snap = await getDocs(q);
     $("#ld")?.remove();
     const items = snap.docs.map(d => ({id: d.id, ...d.data()}))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    if (!items.length) m.append(el("div", {class: "center"}, "কোনো পোস্ট নেই।"));
+    if (!items.length) m.append(el("div", {class: "center"}, tx("কোনো পোস্ট নেই।")));
     items.forEach(p => m.append(postCard(p, staffMode, showStatus)));
   } catch (e) {
     $("#ld")?.remove();
@@ -251,31 +518,36 @@ async function listPosts(q, staffMode, showStatus) {
 function errBox(e) {
   const msg = e.message || String(e);
   const u = (msg.match(/https:\/\/\S+/) || [])[0];
-  const box = el("div", {class: "card"}, "সমস্যা হয়েছে: " + msg.replace(/https:\/\/\S+/, "").trim());
-  if (u) box.append(el("div", {class: "row"}, el("a", {href: u, target: "_blank"}, "👉 এখানে চেপে ইনডেক্স তৈরি করুন (শুধু অ্যাডমিনের জন্য)")));
+  const box = el("div", {class: "card"}, tx("সমস্যা হয়েছে: ") + msg.replace(/https:\/\/\S+/, "").trim());
+  if (u) box.append(el("div", {class: "row"}, el("a", {href: u, target: "_blank"}, tx("👉 এখানে চেপে ইনডেক্স তৈরি করুন (শুধু অ্যাডমিনের জন্য)"))));
   return box;
 }
 
 async function homeFeed() {
   const m = $("#main");
+  if (!user) {
+    m.append(el("div", {class: "card"}, el("b", {}, tx("স্বাগতম!")),
+      el("div", {class: "meta", style: "margin:6px 0"}, tx("ছবি, ভিডিও ও লেখা শেয়ার করুন, কমেন্ট ও রিঅ্যাকশন দিন। পোস্ট করতে বিনামূল্যে অ্যাকাউন্ট খুলুন।")),
+      el("div", {class: "row"}, el("button", {onclick: () => show("login")}, tx("লগইন / সাইন আপ")))));
+  }
   let last = null;
   const holder = el("div", {});
   const moreWrap = el("div", {class: "row", style: "justify-content:center"});
   m.append(holder, moreWrap);
   const load = async () => {
     moreWrap.innerHTML = "";
-    const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+    const ld = el("div", {class: "center"}, tx("লোড হচ্ছে..."));
     holder.append(ld);
     try {
       const parts = [collection(db, "posts"), where("status", "==", "approved"), orderBy("createdAt", "desc"), limit(PAGE)];
       if (last) parts.push(startAfter(last));
       const snap = await getDocs(query(...parts));
       ld.remove();
-      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, "কোনো পোস্ট নেই।"));
+      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, tx("কোনো পোস্ট নেই।")));
       snap.docs.forEach(d => holder.append(postCard({id: d.id, ...d.data()}, false, false)));
       if (snap.docs.length === PAGE) {
         last = snap.docs[snap.docs.length - 1];
-        moreWrap.append(el("button", {class: "sec", onclick: load}, "আরও দেখুন"));
+        moreWrap.append(el("button", {class: "sec", onclick: load}, tx("আরও দেখুন")));
       }
     } catch (e) {
       ld.remove();
@@ -293,20 +565,20 @@ async function singlePost() {
   m.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => {
     history.replaceState(null, "", location.pathname + location.search);
     openPostId = null; show("home");
-  }}, "← সব পোস্ট")));
+  }}, tx("← সব পোস্ট"))));
   try {
     const s = await getDoc(doc(db, "posts", openPostId));
     if (!s.exists()) throw new Error("x");
     m.append(postCard({id: s.id, ...s.data()}, false, false, true));
   } catch (e) {
-    m.append(el("div", {class: "center"}, "এই পোস্টটি পাওয়া যায়নি বা আপনি এটি দেখতে পারবেন না।"));
+    m.append(el("div", {class: "center"}, tx("এই পোস্টটি পাওয়া যায়নি বা আপনি এটি দেখতে পারবেন না।")));
   }
 }
 
 function shareUrl(url, text) {
-  if (navigator.share) navigator.share({title: "কমিউনিটি সাইট", text, url}).catch(() => {});
-  else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => alert("লিংক কপি হয়েছে।"), () => prompt("লিংক কপি করুন:", url));
-  else prompt("লিংক কপি করুন:", url);
+  if (navigator.share) navigator.share({title: SITE, text, url}).catch(() => {});
+  else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => alert(tx("লিংক কপি হয়েছে।")), () => prompt(tx("লিংক কপি করুন:"), url));
+  else prompt(tx("লিংক কপি করুন:"), url);
 }
 
 function sharePost(p) {
@@ -317,13 +589,14 @@ window.addEventListener("hashchange", () => {
   const r = parseHash();
   if (r && r.t === "post") { openPostId = r.id; show("post"); }
   else if (r && r.t === "user") { openUserId = r.id; show("user"); }
-  else if (tab === "post" || tab === "user") { openPostId = null; openUserId = null; show("home"); }
+  else if (r && r.t === "page") { openPage = r.id; show("page"); }
+  else if (tab === "post" || tab === "user" || tab === "page") { openPostId = null; openUserId = null; openPage = null; show("home"); }
 });
 
 async function popularFeed() {
   const m = $("#main");
-  const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
-  m.append(el("div", {class: "meta"}, "সাম্প্রতিক ৩০টি পোস্টের মধ্যে সবচেয়ে বেশি রিঅ্যাকশন ও কমেন্ট পাওয়া পোস্ট"), ld);
+  const ld = el("div", {class: "center"}, tx("লোড হচ্ছে..."));
+  m.append(el("div", {class: "meta"}, tx("সাম্প্রতিক ৩০টি পোস্টের মধ্যে সবচেয়ে বেশি রিঅ্যাকশন ও কমেন্ট পাওয়া পোস্ট")), ld);
   try {
     if (!popCache || Date.now() - popCache.t > 300000) {
       const snap = await getDocs(query(collection(db, "posts"), where("status", "==", "approved"), orderBy("createdAt", "desc"), limit(30)));
@@ -339,14 +612,14 @@ async function popularFeed() {
     }
     ld.remove();
     const top = popCache.items.filter(x => x.score > 0);
-    if (!top.length) m.append(el("div", {class: "center"}, "এখনো কোনো জনপ্রিয় পোস্ট নেই।"));
+    if (!top.length) m.append(el("div", {class: "center"}, tx("এখনো কোনো জনপ্রিয় পোস্ট নেই।")));
     top.forEach(x => m.append(postCard(x.p, false, false)));
   } catch (e) { ld.remove(); m.append(errBox(e)); }
 }
 
 async function userPage() {
   const m = $("#main");
-  m.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { openUserId = null; show("home"); }}, "← হোম")));
+  m.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { openUserId = null; show("home"); }}, tx("← হোম"))));
   const head = el("div", {class: "card"});
   const holder = el("div", {});
   const moreWrap = el("div", {class: "row", style: "justify-content:center"});
@@ -371,14 +644,14 @@ async function userPage() {
             following = true; followers = (followers || 0) + 1;
             notify({id: "follow_" + fid, to: uid, type: "follow", postId: "", text: ""});
           }
-        } catch (e) { alert("সমস্যা: " + e.message); }
+        } catch (e) { alert(tx("সমস্যা: ") + e.message); }
         fillHead(shownName);
-      }}, following ? "✓ ফলো করছেন" : "➕ ফলো করুন");
+      }}, following ? tx("✓ ফলো করছেন") : tx("➕ ফলো করুন"));
       row.append(fb);
     }
-    row.append(el("button", {class: "sec", onclick: () => shareUrl(location.origin + location.pathname + "#user=" + uid, (name || "ইউজার") + " এর পোস্ট")}, "↗ প্রোফাইল শেয়ার"));
-    head.append(el("b", {}, name || "ইউজার"),
-      el("div", {class: "meta"}, "প্রকাশিত পোস্ট: " + (total === null ? "..." : total) + " · ফলোয়ার: " + (followers === null ? "..." : followers)),
+    row.append(el("button", {class: "sec", onclick: () => shareUrl(location.origin + location.pathname + "#user=" + uid, (name || tx("ইউজার")) + tx(" এর পোস্ট"))}, tx("↗ প্রোফাইল শেয়ার")));
+    head.append(el("b", {}, name || tx("ইউজার")),
+      el("div", {class: "meta"}, tx("প্রকাশিত পোস্ট: ") + (total === null ? "..." : total) + tx(" · ফলোয়ার: ") + (followers === null ? "..." : followers)),
       row);
   };
   fillHead("");
@@ -395,18 +668,18 @@ async function userPage() {
   };
   const load = async () => {
     moreWrap.innerHTML = "";
-    const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+    const ld = el("div", {class: "center"}, tx("লোড হচ্ছে..."));
     holder.append(ld);
     try {
       const parts = [collection(db, "posts"), where("status", "==", "approved"), where("uid", "==", uid), orderBy("createdAt", "desc"), limit(PAGE)];
       if (last) parts.push(startAfter(last));
       const snap = await getDocs(query(...parts));
       ld.remove();
-      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, "এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।"));
+      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, tx("এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।")));
       addItems(snap.docs.map(d => ({id: d.id, ...d.data()})));
       if (snap.docs.length === PAGE) {
         last = snap.docs[snap.docs.length - 1];
-        moreWrap.append(el("button", {class: "sec", onclick: load}, "আরও দেখুন"));
+        moreWrap.append(el("button", {class: "sec", onclick: load}, tx("আরও দেখুন")));
       }
     } catch (e) {
       ld.remove();
@@ -416,7 +689,7 @@ async function userPage() {
           const snap = await getDocs(query(collection(db, "posts"), where("status", "==", "approved"), where("uid", "==", uid), limit(100)));
           const items = snap.docs.map(d => ({id: d.id, ...d.data()}))
             .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-          if (!items.length) holder.append(el("div", {class: "center"}, "এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।"));
+          if (!items.length) holder.append(el("div", {class: "center"}, tx("এই ইউজারের কোনো প্রকাশিত পোস্ট নেই।")));
           addItems(items);
         } catch (e2) { holder.append(errBox(e2)); }
       } else holder.append(errBox(e));
@@ -449,31 +722,31 @@ async function followingFeed() {
   const m = $("#main");
   const holder = el("div", {});
   const moreWrap = el("div", {class: "row", style: "justify-content:center"});
-  m.append(el("div", {class: "meta"}, "আপনি যাদের ফলো করেন তাদের পোস্ট (সর্বোচ্চ ৩০ জনের)"), holder, moreWrap);
+  m.append(el("div", {class: "meta"}, tx("আপনি যাদের ফলো করেন তাদের পোস্ট (সর্বোচ্চ ৩০ জনের)")), holder, moreWrap);
   let ids = [];
   try {
     const fs = await getDocs(query(collection(db, "follows"), where("follower", "==", user.uid), limit(30)));
     ids = fs.docs.map(d => d.data().followee);
   } catch (e) { holder.append(errBox(e)); return; }
   if (!ids.length) {
-    holder.append(el("div", {class: "center"}, "আপনি এখনো কাউকে ফলো করেননি। কোনো লেখকের নামে চেপে তার প্রোফাইলে গিয়ে ফলো করুন।"));
+    holder.append(el("div", {class: "center"}, tx("আপনি এখনো কাউকে ফলো করেননি। কোনো লেখকের নামে চেপে তার প্রোফাইলে গিয়ে ফলো করুন।")));
     return;
   }
   let last = null;
   const load = async () => {
     moreWrap.innerHTML = "";
-    const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+    const ld = el("div", {class: "center"}, tx("লোড হচ্ছে..."));
     holder.append(ld);
     try {
       const parts = [collection(db, "posts"), where("status", "==", "approved"), where("uid", "in", ids), orderBy("createdAt", "desc"), limit(PAGE)];
       if (last) parts.push(startAfter(last));
       const snap = await getDocs(query(...parts));
       ld.remove();
-      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, "ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।"));
+      if (!snap.docs.length && !last) holder.append(el("div", {class: "center"}, tx("ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।")));
       snap.docs.forEach(d => holder.append(postCard({id: d.id, ...d.data()}, false, false)));
       if (snap.docs.length === PAGE) {
         last = snap.docs[snap.docs.length - 1];
-        moreWrap.append(el("button", {class: "sec", onclick: load}, "আরও দেখুন"));
+        moreWrap.append(el("button", {class: "sec", onclick: load}, tx("আরও দেখুন")));
       }
     } catch (e) {
       ld.remove();
@@ -483,7 +756,7 @@ async function followingFeed() {
           const snap = await getDocs(query(collection(db, "posts"), where("status", "==", "approved"), where("uid", "in", ids), limit(100)));
           const items = snap.docs.map(d => ({id: d.id, ...d.data()}))
             .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-          if (!items.length) holder.append(el("div", {class: "center"}, "ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।"));
+          if (!items.length) holder.append(el("div", {class: "center"}, tx("ফলো করা ইউজারদের কোনো প্রকাশিত পোস্ট নেই।")));
           items.forEach(p => holder.append(postCard(p, false, false)));
         } catch (e2) { holder.append(errBox(e2)); }
       } else holder.append(errBox(e));
@@ -495,8 +768,8 @@ async function followingFeed() {
 async function notifPanel() {
   const m = $("#main");
   const holder = el("div", {});
-  m.append(el("b", {}, "🔔 নোটিফিকেশন"), holder);
-  const ld = el("div", {class: "center"}, "লোড হচ্ছে...");
+  m.append(el("b", {}, tx("🔔 নোটিফিকেশন")), holder);
+  const ld = el("div", {class: "center"}, tx("লোড হচ্ছে..."));
   holder.append(ld);
   try {
     let docs;
@@ -510,18 +783,18 @@ async function notifPanel() {
       docs = s.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0)).slice(0, 30);
     }
     ld.remove();
-    if (!docs.length) holder.append(el("div", {class: "center"}, "কোনো নোটিফিকেশন নেই।"));
+    if (!docs.length) holder.append(el("div", {class: "center"}, tx("কোনো নোটিফিকেশন নেই।")));
     docs.forEach(d => {
       const n = d.data();
-      const who = n.fromName || "কেউ";
+      const who = n.fromName || tx("কেউ");
       const msg = {
-        comment: who + " আপনার পোস্টে কমেন্ট করেছেন: " + (n.text || ""),
-        like: who + " আপনার পোস্টে রিঅ্যাকশন দিয়েছেন " + (n.text || ""),
-        follow: who + " আপনাকে ফলো করেছেন",
-        approved: "আপনার পোস্টটি অনুমোদিত হয়েছে এবং এখন সবাই দেখতে পাচ্ছে",
-        rejected: "আপনার পোস্টটি বাতিল করা হয়েছে"
-      }[n.type] || "নতুন নোটিফিকেশন";
-      const when = n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString("bn-BD") : "";
+        comment: who + tx(" আপনার পোস্টে কমেন্ট করেছেন: ") + (n.text || ""),
+        like: who + tx(" আপনার পোস্টে রিঅ্যাকশন দিয়েছেন ") + (n.text || ""),
+        follow: who + tx(" আপনাকে ফলো করেছেন"),
+        approved: tx("আপনার পোস্টটি অনুমোদিত হয়েছে এবং এখন সবাই দেখতে পাচ্ছে"),
+        rejected: tx("আপনার পোস্টটি বাতিল করা হয়েছে")
+      }[n.type] || tx("নতুন নোটিফিকেশন");
+      const when = n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString(loc()) : "";
       const c = el("div", {class: "card", style: "cursor:pointer;" + (n.read ? "" : "background:#eff6ff")},
         el("div", {}, msg), el("div", {class: "meta", style: "margin-top:4px"}, when));
       c.onclick = () => {
@@ -537,8 +810,8 @@ async function notifPanel() {
 }
 
 async function report(type, targetId, postId, authorUid, authorName, preview) {
-  if (!user) return alert("রিপোর্ট করতে লগইন করুন।");
-  const reason = prompt("রিপোর্টের কারণ সংক্ষেপে লিখুন:");
+  if (!user) return alert(tx("রিপোর্ট করতে লগইন করুন।"));
+  const reason = prompt(tx("রিপোর্টের কারণ সংক্ষেপে লিখুন:"));
   if (reason === null) return;
   try {
     await setDoc(doc(db, "reports", user.uid + "_" + targetId), {
@@ -546,23 +819,23 @@ async function report(type, targetId, postId, authorUid, authorName, preview) {
       preview: (preview || "").slice(0, 200), reason: reason.slice(0, 300),
       reporterUid: user.uid, createdAt: serverTimestamp()
     });
-    alert("রিপোর্ট জমা হয়েছে। ধন্যবাদ।");
-  } catch (e) { alert("রিপোর্ট করা যায়নি (হয়তো আগেই করেছেন): " + e.message); }
+    alert(tx("রিপোর্ট জমা হয়েছে। ধন্যবাদ।"));
+  } catch (e) { alert(tx("রিপোর্ট করা যায়নি (হয়তো আগেই করেছেন): ") + e.message); }
 }
 
 async function banUser(uid, name) {
-  if (!confirm((name || "এই ইউজার") + " কে ব্যান করবেন?")) return;
+  if (!confirm(tx("{n} কে ব্যান করবেন?").replace("{n}", name || tx("এই ইউজার")))) return;
   try {
     await setDoc(doc(db, "banned", uid), {name: name || "", at: serverTimestamp()});
-    alert("ব্যান করা হয়েছে।");
-  } catch (e) { alert("ব্যান করা যায়নি (অ্যাডমিন/মডারেটরকে ব্যান করা যায় না, আগেই ব্যান থাকলেও এরর আসে): " + e.message); }
+    alert(tx("ব্যান করা হয়েছে।"));
+  } catch (e) { alert(tx("ব্যান করা যায়নি (অ্যাডমিন/মডারেটরকে ব্যান করা যায় না, আগেই ব্যান থাকলেও এরর আসে): ") + e.message); }
 }
 
 function postCard(p, staffMode, showStatus, autoOpen) {
   const c = el("div", {class: "card"});
-  const when = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleString("bn-BD") : "";
-  const meta = el("div", {class: "meta"}, p.uid ? el("a", {href: "#user=" + p.uid}, p.authorName || "অজ্ঞাত") : (p.authorName || "অজ্ঞাত"), " · ", p.status === "approved" ? el("a", {href: "#post=" + p.id}, when || "লিংক") : when, " ");
-  if (showStatus) meta.append(el("span", {class: "badge " + p.status}, {pending: "অপেক্ষমাণ", approved: "অনুমোদিত", rejected: "বাতিল"}[p.status] || p.status));
+  const when = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleString(loc()) : "";
+  const meta = el("div", {class: "meta"}, p.uid ? el("a", {href: "#user=" + p.uid}, p.authorName || tx("অজ্ঞাত")) : (p.authorName || tx("অজ্ঞাত")), " · ", p.status === "approved" ? el("a", {href: "#post=" + p.id}, when || tx("লিংক")) : when, " ");
+  if (showStatus) meta.append(el("span", {class: "badge " + p.status}, {pending: tx("অপেক্ষমাণ"), approved: tx("অনুমোদিত"), rejected: tx("বাতিল")}[p.status] || p.status));
   c.append(meta);
   if (p.text) c.append(el("div", {style: "white-space:pre-wrap"}, p.text));
   if (p.mediaUrl && /^https:\/\/res\.cloudinary\.com\//.test(p.mediaUrl)) {
@@ -573,16 +846,16 @@ function postCard(p, staffMode, showStatus, autoOpen) {
   if (staffMode) {
     row.append(el("button", {class: "ok", onclick: () => setStatus(p, "approved")}, "Approve"));
     row.append(el("button", {class: "no", onclick: () => setStatus(p, "rejected")}, "Reject"));
-    row.append(el("button", {class: "sec", onclick: () => banUser(p.uid, p.authorName)}, "ইউজার ব্যান"));
+    row.append(el("button", {class: "sec", onclick: () => banUser(p.uid, p.authorName)}, tx("ইউজার ব্যান")));
   }
   if (user && p.status === "approved" && p.uid !== user.uid) {
-    row.append(el("button", {class: "sec", onclick: () => report("post", p.id, p.id, p.uid, p.authorName, p.text || p.mediaType || "মিডিয়া")}, "⚠️ রিপোর্ট"));
+    row.append(el("button", {class: "sec", onclick: () => report("post", p.id, p.id, p.uid, p.authorName, p.text || p.mediaType || tx("মিডিয়া"))}, tx("⚠️ রিপোর্ট")));
   }
   if (staffMode || p.uid === user?.uid) {
     row.append(el("button", {class: "sec", onclick: async () => {
-      if (!confirm("মুছে ফেলবেন?")) return;
+      if (!confirm(tx("মুছে ফেলবেন?"))) return;
       await deleteDoc(doc(db, "posts", p.id)); show(tab);
-    }}, "মুছুন"));
+    }}, tx("মুছুন")));
   }
   if (row.children.length) c.append(row);
   return c;
@@ -592,8 +865,8 @@ const EMO = {love: "❤️", haha: "😂", wow: "😮", sad: "😢"};
 
 function engagement(p, c, autoOpen) {
   const likeBtn = el("button", {class: "sec"}, "🤍 0");
-  const cBtn = el("button", {class: "sec"}, "💬 কমেন্ট");
-  const shBtn = el("button", {class: "sec", onclick: () => sharePost(p)}, "↗ শেয়ার");
+  const cBtn = el("button", {class: "sec"}, tx("💬 কমেন্ট"));
+  const shBtn = el("button", {class: "sec", onclick: () => sharePost(p)}, tx("↗ শেয়ার"));
   const picker = el("div", {class: "row hide"});
   const box = el("div", {class: "hide"});
   c.append(el("div", {class: "row"}, likeBtn, cBtn, shBtn), picker, box);
@@ -627,12 +900,12 @@ function engagement(p, c, autoOpen) {
         mine = t;
       }
       paint();
-    } catch (e) { alert("সমস্যা: " + e.message); }
+    } catch (e) { alert(tx("সমস্যা: ") + e.message); }
   };
   Object.keys(EMO).forEach(k => picker.append(el("button", {class: "sec", onclick: () => setReaction(k)}, EMO[k])));
-  picker.append(el("button", {class: "sec", onclick: () => setReaction(null)}, "✖ সরান"));
+  picker.append(el("button", {class: "sec", onclick: () => setReaction(null)}, tx("✖ সরান")));
   likeBtn.onclick = () => {
-    if (!user) return alert("রিঅ্যাকশন দিতে লগইন করুন।");
+    if (!user) return alert(tx("রিঅ্যাকশন দিতে লগইন করুন।"));
     picker.className = picker.className.includes("hide") ? "row" : "row hide";
   };
   cBtn.onclick = () => {
@@ -647,35 +920,35 @@ function loadComments(p, box) {
   const list = el("div", {});
   box.append(list);
   async function refresh() {
-    list.textContent = "লোড হচ্ছে...";
+    list.textContent = tx("লোড হচ্ছে...");
     try {
       const s = await getDocs(collection(db, "posts", p.id, "comments"));
       const items = s.docs.map(d => ({id: d.id, ...d.data()}))
         .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       list.innerHTML = "";
-      if (!items.length) list.append(el("div", {class: "meta"}, "এখনো কোনো কমেন্ট নেই।"));
+      if (!items.length) list.append(el("div", {class: "meta"}, tx("এখনো কোনো কমেন্ট নেই।")));
       items.forEach(cm => {
-        const row = el("div", {class: "cm"}, el("a", {href: "#user=" + cm.uid, style: "font-weight:bold;color:inherit;text-decoration:none"}, cm.authorName || "অজ্ঞাত"), ": ", cm.text);
+        const row = el("div", {class: "cm"}, el("a", {href: "#user=" + cm.uid, style: "font-weight:bold;color:inherit;text-decoration:none"}, cm.authorName || tx("অজ্ঞাত")), ": ", cm.text);
         if (user && (cm.uid === user.uid || isStaff())) {
           row.append(" ", el("a", {href: "#", onclick: async e => {
             e.preventDefault();
-            if (!confirm("কমেন্ট মুছবেন?")) return;
+            if (!confirm(tx("কমেন্ট মুছবেন?"))) return;
             try { await deleteDoc(doc(db, "posts", p.id, "comments", cm.id)); refresh(); }
-            catch (er) { alert("সমস্যা: " + er.message); }
-          }}, "মুছুন"));
+            catch (er) { alert(tx("সমস্যা: ") + er.message); }
+          }}, tx("মুছুন")));
         }
         if (user && cm.uid !== user.uid) {
           row.append(" ", el("a", {href: "#", onclick: e => {
             e.preventDefault();
             report("comment", cm.id, p.id, cm.uid, cm.authorName, cm.text);
-          }}, "রিপোর্ট"));
+          }}, tx("রিপোর্ট")));
         }
         list.append(row);
       });
-    } catch (e) { list.textContent = "সমস্যা: " + e.message; }
+    } catch (e) { list.textContent = tx("সমস্যা: ") + e.message; }
   }
   if (user) {
-    const inp = el("input", {type: "text", placeholder: "কমেন্ট লিখুন...", maxLength: 1000});
+    const inp = el("input", {type: "text", placeholder: tx("কমেন্ট লিখুন..."), maxLength: 1000});
     const send = el("button", {onclick: async () => {
       const t = inp.value.trim();
       if (!t) return;
@@ -689,20 +962,20 @@ function loadComments(p, box) {
         });
         if (p.uid && p.uid !== user.uid) notify({id: "comment_" + cref.id, to: p.uid, type: "comment", postId: p.id, ref: cref.id, text: t});
         inp.value = ""; await refresh();
-      } catch (e) { alert("সমস্যা: " + e.message); }
+      } catch (e) { alert(tx("সমস্যা: ") + e.message); }
       send.disabled = false;
-    }}, "পাঠান");
+    }}, tx("পাঠান"));
     box.append(el("div", {class: "row"}, inp, send));
   } else {
-    box.append(el("div", {class: "meta"}, "কমেন্ট করতে লগইন করুন।"));
+    box.append(el("div", {class: "meta"}, tx("কমেন্ট করতে লগইন করুন।")));
   }
   refresh();
 }
 
 async function setStatus(p, status) {
   try { await updateDoc(doc(db, "posts", p.id), {status, reviewedBy: user.uid}); }
-  catch (e) { return alert("সমস্যা: " + e.message); }
-  if (p.uid && p.uid !== user.uid) notify({id: "status_" + p.id + "_" + status, to: p.uid, type: status, postId: p.id, text: "", fromName: "মডারেটর"});
+  catch (e) { return alert(tx("সমস্যা: ") + e.message); }
+  if (p.uid && p.uid !== user.uid) notify({id: "status_" + p.id + "_" + status, to: p.uid, type: status, postId: p.id, text: "", fromName: tx("মডারেটর")});
   show("pending");
 }
 
@@ -710,21 +983,25 @@ function newPost() {
   const m = $("#main");
   const why0 = blockReason();
   if (why0) { m.append(el("div", {class: "card"}, why0)); return; }
-  const ta = el("textarea", {rows: 5, placeholder: "আপনার লেখা..."});
+  const ta = el("textarea", {rows: 5, placeholder: tx("আপনার লেখা...")});
   const file = el("input", {type: "file", accept: "image/*,video/*"});
   const msg = el("div", {class: "small"});
+  const agree = el("input", {type: "checkbox"});
+  const agreeRow = el("label", {class: "small", style: "display:flex;gap:6px;align-items:center;margin-top:8px"},
+    agree, tx("আমি "), el("a", {href: location.origin + location.pathname + "#page=rules", target: "_blank"}, tx("নিয়মাবলী")), tx(" পড়েছি ও মানছি"));
   const btn = el("button", {onclick: async () => {
     const text = ta.value.trim();
     const f = file.files[0];
-    if (!text && !f) return msg.textContent = "কিছু লিখুন বা ফাইল দিন।";
-    if (f && !CLOUD_NAME) return msg.textContent = "ছবি/ভিডিও আপলোড এখনো চালু হয়নি।";
+    if (!agree.checked) return msg.textContent = tx("পোস্ট করতে নিয়মাবলী মানতে হবে (টিক দিন)।");
+    if (!text && !f) return msg.textContent = tx("কিছু লিখুন বা ফাইল দিন।");
+    if (f && !CLOUD_NAME) return msg.textContent = tx("ছবি/ভিডিও আপলোড এখনো চালু হয়নি।");
     if (f) {
       const isVid = f.type.startsWith("video"), isImg = f.type.startsWith("image");
-      if (!isVid && !isImg) return msg.textContent = "শুধু ছবি বা ভিডিও দেওয়া যাবে।";
+      if (!isVid && !isImg) return msg.textContent = tx("শুধু ছবি বা ভিডিও দেওয়া যাবে।");
       const lim = isVid ? MAX_VID_MB : MAX_IMG_MB;
-      if (f.size > lim * 1048576) return msg.textContent = (isVid ? "ভিডিও" : "ছবি") + " " + lim + "MB এর বেশি হতে পারবে না।";
+      if (f.size > lim * 1048576) return msg.textContent = (isVid ? tx("ভিডিও সর্বোচ্চ {n}MB হতে পারবে।") : tx("ছবি সর্বোচ্চ {n}MB হতে পারবে।")).replace("{n}", lim);
     }
-    btn.disabled = true; msg.textContent = "পোস্ট হচ্ছে...";
+    btn.disabled = true; msg.textContent = tx("পোস্ট হচ্ছে...");
     try {
       await loadCfg();
       const why = blockReason();
@@ -735,7 +1012,7 @@ function newPost() {
         const fd = new FormData(); fd.append("file", f); fd.append("upload_preset", UPLOAD_PRESET);
         const r = await fetch("https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/" + type + "/upload", {method: "POST", body: fd});
         const j = await r.json();
-        if (!j.secure_url) throw new Error("আপলোড ব্যর্থ");
+        if (!j.secure_url) throw new Error(tx("আপলোড ব্যর্থ"));
         mediaUrl = j.secure_url; mediaType = type;
       }
       const status = cfg.autoApprove ? "approved" : "pending";
@@ -744,56 +1021,56 @@ function newPost() {
         text: text.slice(0, 5000), mediaUrl, mediaType,
         status, createdAt: serverTimestamp()
       });
-      alert(status === "approved" ? "পোস্ট প্রকাশিত হয়েছে।" : "পোস্ট জমা হয়েছে। অনুমোদনের পর সবাই দেখতে পাবে।");
+      alert(status === "approved" ? tx("পোস্ট প্রকাশিত হয়েছে।") : tx("পোস্ট জমা হয়েছে। অনুমোদনের পর সবাই দেখতে পাবে।"));
       show(status === "approved" ? "home" : "mine");
-    } catch (e) { msg.textContent = "সমস্যা: " + e.message; btn.disabled = false; }
-  }}, "পোস্ট করুন");
-  m.append(el("div", {class: "card"}, ta, file, el("div", {class: "row"}, btn), msg));
+    } catch (e) { msg.textContent = tx("সমস্যা: ") + e.message; btn.disabled = false; }
+  }}, tx("পোস্ট করুন"));
+  m.append(el("div", {class: "card"}, ta, file, agreeRow, el("div", {class: "row"}, btn), msg));
 }
 
 async function reportsPanel() {
   const m = $("#main");
-  const box = el("div", {}, el("div", {class: "center"}, "লোড হচ্ছে..."));
+  const box = el("div", {}, el("div", {class: "center"}, tx("লোড হচ্ছে...")));
   m.append(box);
   try {
     const s = await getDocs(collection(db, "reports"));
     box.innerHTML = "";
     const items = s.docs.map(d => ({id: d.id, ...d.data()}))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    box.append(el("b", {}, "রিপোর্ট (" + items.length + ")"));
-    if (!items.length) box.append(el("div", {class: "card"}, "কোনো রিপোর্ট নেই।"));
+    box.append(el("b", {}, tx("রিপোর্ট (") + items.length + ")"));
+    if (!items.length) box.append(el("div", {class: "card"}, tx("কোনো রিপোর্ট নেই।")));
     items.forEach(r => {
       const c = el("div", {class: "card"},
-        el("div", {class: "meta"}, (r.type === "post" ? "পোস্ট" : "কমেন্ট") + " · " + (r.authorName || "অজ্ঞাত")),
+        el("div", {class: "meta"}, (r.type === "post" ? tx("পোস্ট") : tx("কমেন্ট")) + " · " + (r.authorName || tx("অজ্ঞাত"))),
         el("div", {style: "white-space:pre-wrap"}, r.preview || ""),
-        el("div", {class: "meta", style: "margin-top:6px"}, "কারণ: " + (r.reason || "-")));
+        el("div", {class: "meta", style: "margin-top:6px"}, tx("কারণ: ") + (r.reason || "-")));
       const row = el("div", {class: "row"});
       row.append(el("button", {class: "no", onclick: async () => {
-        if (!confirm("কনটেন্ট মুছে ফেলবেন?")) return;
+        if (!confirm(tx("কনটেন্ট মুছে ফেলবেন?"))) return;
         try {
           if (r.type === "post") await deleteDoc(doc(db, "posts", r.targetId));
           else await deleteDoc(doc(db, "posts", r.postId, "comments", r.targetId));
           await deleteDoc(doc(db, "reports", r.id)); show("reports");
-        } catch (e) { alert("সমস্যা: " + e.message); }
-      }}, "কনটেন্ট মুছুন"));
-      row.append(el("button", {class: "sec", onclick: () => banUser(r.authorUid, r.authorName)}, "ইউজার ব্যান"));
+        } catch (e) { alert(tx("সমস্যা: ") + e.message); }
+      }}, tx("কনটেন্ট মুছুন")));
+      row.append(el("button", {class: "sec", onclick: () => banUser(r.authorUid, r.authorName)}, tx("ইউজার ব্যান")));
       row.append(el("button", {class: "sec", onclick: async () => {
         try { await deleteDoc(doc(db, "reports", r.id)); show("reports"); }
-        catch (e) { alert("সমস্যা: " + e.message); }
-      }}, "বাদ দিন"));
+        catch (e) { alert(tx("সমস্যা: ") + e.message); }
+      }}, tx("বাদ দিন")));
       c.append(row); box.append(c);
     });
     const bs = await getDocs(collection(db, "banned"));
-    const bc = el("div", {class: "card"}, el("b", {}, "ব্যান করা ইউজার (" + bs.size + ")"));
+    const bc = el("div", {class: "card"}, el("b", {}, tx("ব্যান করা ইউজার (") + bs.size + ")"));
     bs.docs.forEach(d => {
       bc.append(el("div", {class: "row"}, el("span", {}, d.data().name || d.id),
         el("button", {class: "sec", onclick: async () => {
           try { await deleteDoc(doc(db, "banned", d.id)); show("reports"); }
-          catch (e) { alert("সমস্যা: " + e.message); }
-        }}, "আনব্যান")));
+          catch (e) { alert(tx("সমস্যা: ") + e.message); }
+        }}, tx("আনব্যান"))));
     });
     box.append(bc);
-  } catch (e) { box.innerHTML = ""; box.append(el("div", {class: "center"}, "সমস্যা: " + e.message)); }
+  } catch (e) { box.innerHTML = ""; box.append(el("div", {class: "center"}, tx("সমস্যা: ") + e.message)); }
 }
 
 async function settingsPanel() {
@@ -806,74 +1083,74 @@ async function settingsPanel() {
       try {
         await setDoc(doc(db, "settings", "config"), {...cfg, [key]: !on});
         await loadCfg(); show("settings");
-      } catch (e) { alert("সমস্যা: " + e.message); btn.disabled = false; }
-    }}, on ? "বন্ধ করুন" : "চালু করুন");
+      } catch (e) { alert(tx("সমস্যা: ") + e.message); btn.disabled = false; }
+    }}, on ? tx("বন্ধ করুন") : tx("চালু করুন"));
     return el("div", {class: "card"},
-      el("div", {}, label + ": ", el("b", {}, on ? "চালু" : "বন্ধ")),
+      el("div", {}, label + ": ", el("b", {}, on ? tx("চালু") : tx("বন্ধ"))),
       el("div", {class: "meta"}, help), el("div", {class: "row"}, btn));
   };
   m.append(
-    mk("অটো-অ্যাপ্রুভ", "autoApprove", "চালু থাকলে নতুন পোস্ট সাথে সাথে সবার জন্য প্রকাশিত হবে। বন্ধ থাকলে অ্যাডমিন/মডারেটর অ্যাপ্রুভ করার পর দেখা যাবে।"),
-    mk("ইমেইল ভেরিফিকেশন বাধ্যতামূলক", "requireVerify", "চালু থাকলে ইমেইলে ভেরিফাই না করা ইউজার পোস্ট, লাইক বা কমেন্ট করতে পারবে না। Google দিয়ে লগইন করা ইউজার আগে থেকেই ভেরিফাইড।"));
+    mk(tx("অটো-অ্যাপ্রুভ"), "autoApprove", tx("চালু থাকলে নতুন পোস্ট সাথে সাথে সবার জন্য প্রকাশিত হবে। বন্ধ থাকলে অ্যাডমিন/মডারেটর অ্যাপ্রুভ করার পর দেখা যাবে।")),
+    mk(tx("ইমেইল ভেরিফিকেশন বাধ্যতামূলক"), "requireVerify", tx("চালু থাকলে ইমেইলে ভেরিফাই না করা ইউজার পোস্ট, লাইক বা কমেন্ট করতে পারবে না। Google দিয়ে লগইন করা ইউজার আগে থেকেই ভেরিফাইড।")));
 }
 
 function rolesPanel() {
   const m = $("#main");
-  const em = el("input", {type: "email", placeholder: "ইউজারের ইমেইল"});
+  const em = el("input", {type: "email", placeholder: tx("ইউজারের ইমেইল")});
   const msg = el("div", {class: "small"});
   const act = async r => {
     const email = em.value.trim().toLowerCase();
     if (!email) return;
-    if (email === (user.email || "").toLowerCase()) return msg.textContent = "নিজের রোল এখান থেকে বদলানো যাবে না।";
-    if (!isOwner() && r === "admin") return msg.textContent = "শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন বানাতে পারে।";
+    if (email === (user.email || "").toLowerCase()) return msg.textContent = tx("নিজের রোল এখান থেকে বদলানো যাবে না।");
+    if (!isOwner() && r === "admin") return msg.textContent = tx("শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন বানাতে পারে।");
     try {
       const s = await getDocs(query(collection(db, "users"), where("email", "==", email)));
-      if (s.empty) return msg.textContent = "এই ইমেইলে কেউ লগইন করেনি। আগে তাকে একবার লগইন করতে বলুন।";
+      if (s.empty) return msg.textContent = tx("এই ইমেইলে কেউ লগইন করেনি। আগে তাকে একবার লগইন করতে বলুন।");
       const uid = s.docs[0].id;
       if (r === "user") await deleteDoc(doc(db, "roles", uid));
       else await setDoc(doc(db, "roles", uid), {role: r, email});
-      msg.textContent = "হয়েছে: " + email + " → " + r; loadRoles();
-    } catch (e) { msg.textContent = "করা যায়নি (এই রোল বদলানোর অনুমতি আপনার নেই): " + e.message; }
+      msg.textContent = tx("হয়েছে: ") + email + " → " + r; loadRoles();
+    } catch (e) { msg.textContent = tx("করা যায়নি (এই রোল বদলানোর অনুমতি আপনার নেই): ") + e.message; }
   };
   m.append(el("div", {class: "card"},
-    el("b", {}, "রোল পরিবর্তন"),
-    el("div", {class: "meta"}, "ইউজার আগে একবার লগইন করে থাকতে হবে। শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন যোগ বা সরাতে পারে; অন্য অ্যাডমিনরা শুধু মডারেটর যোগ বা সরাতে পারে।"),
+    el("b", {}, tx("রোল পরিবর্তন")),
+    el("div", {class: "meta"}, tx("ইউজার আগে একবার লগইন করে থাকতে হবে। শুধু মেইন অ্যাডমিন (owner) অ্যাডমিন যোগ বা সরাতে পারে; অন্য অ্যাডমিনরা শুধু মডারেটর যোগ বা সরাতে পারে।")),
     em, el("div", {class: "row"},
-      el("button", {onclick: () => act("moderator")}, "মডারেটর বানান"),
-      isOwner() ? el("button", {class: "ok", onclick: () => act("admin")}, "অ্যাডমিন বানান") : "",
-      el("button", {class: "no", onclick: () => act("user")}, "রোল সরান")), msg));
-  m.append(el("div", {class: "card", id: "rl"}, "লোড হচ্ছে..."));
+      el("button", {onclick: () => act("moderator")}, tx("মডারেটর বানান")),
+      isOwner() ? el("button", {class: "ok", onclick: () => act("admin")}, tx("অ্যাডমিন বানান")) : "",
+      el("button", {class: "no", onclick: () => act("user")}, tx("রোল সরান"))), msg));
+  m.append(el("div", {class: "card", id: "rl"}, tx("লোড হচ্ছে...")));
   loadRoles();
 }
 
 async function loadRoles() {
   const box = $("#rl"); if (!box) return;
   const s = await getDocs(collection(db, "roles"));
-  box.innerHTML = ""; box.append(el("b", {}, "বর্তমান অ্যাডমিন/মডারেটর"));
+  box.innerHTML = ""; box.append(el("b", {}, tx("বর্তমান অ্যাডমিন/মডারেটর")));
   s.docs.forEach(d => box.append(el("div", {class: "meta"}, (d.data().email || d.id) + " — " + d.data().role)));
 }
 
 function profile() {
   const card = el("div", {class: "card"},
     el("div", {}, nm()), el("div", {class: "meta"}, user.email),
-    el("div", {}, "রোল: " + role),
-    el("div", {class: "meta"}, "আপনার UID:"), el("div", {class: "small"}, user.uid));
-  if (banned) card.append(el("div", {class: "meta", style: "margin-top:8px"}, "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।"));
-  card.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { location.hash = "#user=" + user.uid; }}, "আমার পাবলিক পেজ দেখুন")));
+    el("div", {}, tx("রোল: ") + role),
+    el("div", {class: "meta"}, tx("আপনার UID:")), el("div", {class: "small"}, user.uid));
+  if (banned) card.append(el("div", {class: "meta", style: "margin-top:8px"}, tx("আপনার অ্যাকাউন্ট ব্লক করা হয়েছে।")));
+  card.append(el("div", {class: "row"}, el("button", {class: "sec", onclick: () => { location.hash = "#user=" + user.uid; }}, tx("আমার পাবলিক পেজ দেখুন"))));
   if (user.providerData.some(p => p.providerId === "password") && !user.emailVerified) {
-    card.append(el("div", {class: "meta", style: "margin-top:10px"}, "আপনার ইমেইল ভেরিফাই করা হয়নি" + (cfg.requireVerify ? " (এখন পোস্ট, লাইক ও কমেন্টের জন্য জরুরি)।" : ".")),
+    card.append(el("div", {class: "meta", style: "margin-top:10px"}, tx("আপনার ইমেইল ভেরিফাই করা হয়নি") + (cfg.requireVerify ? tx(" (এখন পোস্ট, লাইক ও কমেন্টের জন্য জরুরি)।") : ".")),
       el("div", {class: "row"},
         el("button", {onclick: async () => {
-          try { await sendEmailVerification(user); alert("ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।"); }
+          try { await sendEmailVerification(user); alert(tx("ভেরিফিকেশন লিংক পাঠানো হয়েছে (স্প্যাম ফোল্ডারও দেখুন)।")); }
           catch (e) { alert(aerr(e)); }
-        }}, "ভেরিফিকেশন লিংক পাঠান"),
+        }}, tx("ভেরিফিকেশন লিংক পাঠান")),
         el("button", {class: "sec", onclick: async () => {
           try { await user.reload(); await user.getIdToken(true); show("me"); }
           catch (e) { alert(aerr(e)); }
-        }}, "ভেরিফাই করেছি, চেক করুন")));
+        }}, tx("ভেরিফাই করেছি, চেক করুন"))));
   }
   $("#main").append(card);
 }
 </script>
 </body>
-  </html>
+                                                    </html>
